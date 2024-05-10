@@ -1,0 +1,3 @@
+# Hashes of file build rules.
+7269a6384a1651851bd5266b7cbc5ecf Quasar/Vendor/GLFW/CMakeFiles/uninstall
+5d37623ff54d312d0c2d85b7ceb53b90 Quasar/Vendor/GLFW/src/CMakeFiles/update_mappings

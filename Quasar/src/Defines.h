@@ -1,10 +1,6 @@
 /**
  * @file Defines.h
  * @author Rounak Paul (paulrounak1999@gmail.com)
- * @brief This file contains global type definitions which are used
- * throughout the entire engine and applications referencing it.
- * Numeric types are asserted statically to gurantee expected size.
- * @version 1.0
  * @date 18-02-2024
  *
  * @copyright Quasar Engine is Copyright (c) Rounak Paul

@@ -32,3 +32,4 @@ endif()
 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 add_subdirectory(Quasar)
+add_subdirectory(Editor)

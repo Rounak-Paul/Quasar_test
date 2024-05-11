@@ -5,12 +5,14 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     src/*.h
     src/**/*.inl
 )
-add_executable(Quasar ${SOURCES})
+add_library(Quasar SHARED ${SOURCES})
 set_target_properties(Quasar PROPERTIES LINKER_LANGUAGE CXX)
 target_compile_definitions(Quasar PRIVATE QS_BUILD_DLL)
 
 add_subdirectory(Vendor/GLFW)
 add_subdirectory(Vendor/GLM)
+
+target_precompile_headers(Quasar PUBLIC src/qspch.h)
 
 target_include_directories(Quasar PUBLIC 
     src

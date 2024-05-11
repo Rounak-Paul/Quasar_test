@@ -41,7 +41,7 @@ namespace Quasar
         std::chrono::high_resolution_clock::time_point current_time;
         f32 dt;
         inline f32 get_dt() {
-            return (current_time - prev_time).count();
+            return static_cast<std::chrono::duration<f32>>((current_time - prev_time)).count();
         }
     };
 

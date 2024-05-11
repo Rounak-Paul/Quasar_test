@@ -30,6 +30,7 @@ namespace Quasar
 
             if (clk_1Hz > 1.f) {
                 clk_1Hz = 0.f;
+                std::cout << "FPS: " << 1/dt << std::endl;
             }
             frame_count++;
             prev_time = current_time;

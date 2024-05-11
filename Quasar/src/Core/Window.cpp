@@ -39,7 +39,4 @@ namespace Quasar
 	void Window::window_focus_callback(GLFWwindow* window, int focused) {
 		
 	}
-    void Window::poll_events() {
-        glfwPollEvents();
-    }
 }

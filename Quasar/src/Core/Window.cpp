@@ -1,6 +1,8 @@
 #include "Window.h"
 #include <qspch.h>
 
+#include <Core/Event.h>
+
 namespace Quasar
 {
 	Window::Window(u32 w, u32 h, std::string name) : width{w}, height{h}, windowName{name} 
@@ -13,11 +15,8 @@ namespace Quasar
 			GLFWmonitor* monitor = glfwGetPrimaryMonitor();
 			const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 			width = mode->width; height = mode->height;
-			window = glfwCreateWindow(width, height, windowName.c_str(), nullptr, nullptr);
 		}
-		else {
-			window = glfwCreateWindow(width, height, windowName.c_str(), nullptr, nullptr);
-		}
+		window = glfwCreateWindow(width, height, windowName.c_str(), nullptr, nullptr);
 		
 		glfwSetWindowUserPointer(window, this);
 		glfwSetFramebufferSizeCallback(window, framebuffer_resize_callback);
@@ -32,7 +31,14 @@ namespace Quasar
 
 	void Window::framebuffer_resize_callback(GLFWwindow* window, int width, int height)
 	{
-		
+		auto qs_window = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
+		qs_window->width = width;
+		qs_window->height = height;
+		qs_window->framebufferResized = TRUE;
+		event_context context;
+		context.data.u16[0] = width;
+		context.data.u16[1] = height;
+		QS_EVENT.Execute(EVENT_CODE_RESIZED, nullptr, context);
 	}
 
 	// GLFW window focus callback

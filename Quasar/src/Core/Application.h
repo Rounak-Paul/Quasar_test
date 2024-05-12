@@ -4,6 +4,7 @@
 #include <Defines.h>
 
 #include "Window.h"
+#include <Core/Event.h>
 
 namespace Quasar
 {
@@ -35,6 +36,8 @@ namespace Quasar
         static Application* instance;
         app_state state;
         Window window{state.width, state.height, state.app_name.c_str()};
+
+        static b8 application_on_resized(u16 code, void* sender, void* listener_inst, event_context context);
 
         // time
         std::chrono::high_resolution_clock::time_point prev_time;

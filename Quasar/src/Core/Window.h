@@ -17,7 +17,8 @@ namespace Quasar
 
 		inline b8 should_close() { return glfwWindowShouldClose(window); }
 		VkExtent2D get_extent() { return { static_cast<uint32_t>(width), static_cast<uint32_t>(height) }; }
-        inline void poll_events() {glfwPollEvents();};
+        QS_INLINE void poll_events() {glfwPollEvents();};
+		QS_INLINE void wait_events() {glfwWaitEvents();};
 		
 		GLFWwindow* get_GLFWwindow() const { return window; }
 

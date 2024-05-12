@@ -173,21 +173,21 @@ STATIC_ASSERT(sizeof(glm::mat4) == 4*4*4, "Expected f64 to be 8 bytes.");
 // Inlining
 #if defined(__clang__) || defined(__gcc__)
 /** @brief Inline qualifier */
-#define QSINLINE __attribute__((always_inline)) inline
+#define QS_INLINE __attribute__((always_inline)) inline
 
 /** @brief No-inline qualifier */
 #define QSNOINLINE __attribute__((noinline))
 #elif defined(_MSC_VER)
 
 /** @brief Inline qualifier */
-#define QSINLINE __forceinline
+#define QS_INLINE __forceinline
 
 /** @brief No-inline qualifier */
 #define QSNOINLINE __declspec(noinline)
 #else
 
 /** @brief Inline qualifier */
-#define QSINLINE static inline
+#define QS_INLINE static inline
 
 /** @brief No-inline qualifier */
 #define QSNOINLINE
@@ -207,10 +207,10 @@ STATIC_ASSERT(sizeof(glm::mat4) == 4*4*4, "Expected f64 to be 8 bytes.");
 /** @brief Gets the number of bytes from amount of kilobytes (KB) (1000) */
 #define KILOBYTES(amount) amount * 1000
 
-QSINLINE u64 get_aligned(u64 operand, u64 granularity) {
+QS_INLINE u64 get_aligned(u64 operand, u64 granularity) {
     return ((operand + (granularity - 1)) & ~(granularity - 1));
 }
 
-QSINLINE range get_aligned_range(u64 offset, u64 size, u64 granularity) {
+QS_INLINE range get_aligned_range(u64 offset, u64 size, u64 granularity) {
     return range{get_aligned(offset, granularity), get_aligned(size, granularity)};
 }

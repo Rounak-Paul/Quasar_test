@@ -13,11 +13,8 @@ namespace Quasar
 			GLFWmonitor* monitor = glfwGetPrimaryMonitor();
 			const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 			width = mode->width; height = mode->height;
-			window = glfwCreateWindow(width, height, windowName.c_str(), nullptr, nullptr);
 		}
-		else {
-			window = glfwCreateWindow(width, height, windowName.c_str(), nullptr, nullptr);
-		}
+		window = glfwCreateWindow(width, height, windowName.c_str(), nullptr, nullptr);
 		
 		glfwSetWindowUserPointer(window, this);
 		glfwSetFramebufferSizeCallback(window, framebuffer_resize_callback);

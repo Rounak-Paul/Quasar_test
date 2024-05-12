@@ -24,5 +24,5 @@
 #include <GLFW/glfw3.h>
 
 // Customs
-
+#include <Core/Log.h>
 

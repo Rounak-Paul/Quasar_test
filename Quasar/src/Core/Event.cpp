@@ -19,12 +19,16 @@ namespace Quasar
         return true;
     }
 
+    void Event::shutdown() {
+        
+    }
+
     b8 Event::Register(u16 code, void* listener, PFN_on_event on_event) {
         size_t registered_count = event_state.registered[code].events.size();
         for(size_t i = 0; i < registered_count; ++i) {
             if(event_state.registered[code].events[i].listener == listener) {
                 QS_CORE_WARN("Duplicate event listener was issued!");
-                return FALSE;
+                return false;
             }
         }
 
@@ -34,45 +38,45 @@ namespace Quasar
         event.callback = on_event;
         event_state.registered[code].events.push_back(event);
 
-        return TRUE;
+        return true;
     }
 
     b8 Event::Unregister(u16 code, void* listener, PFN_on_event on_event) {
         // On nothing is registered for the code, boot out.
         if(event_state.registered[code].events.size() == 0) {
             QS_CORE_WARN("Event list is empty");
-            return FALSE;
+            return false;
         }
 
         u64 registered_count = event_state.registered[code].events.size();
         for (u64 i = 0; i < registered_count; ++i) {
-            registered_event &e = event_state.registered[code].events[i]; // Use reference to modify the element if needed
+            registered_event &e = event_state.registered[code].events[i];
             if (e.listener == listener && e.callback == on_event) {
                 // Found the element to remove
                 event_state.registered[code].events.erase(event_state.registered[code].events.begin() + i);
-                return true; // Assuming TRUE is a typo and you meant true (lowercase)
+                return true; 
             }
         }
 
         // Not found.
-        return FALSE;
+        return false;
     }
 
     b8 Event::Execute(u16 code, void* sender, event_context context) {
         // If nothing is registered for the code, boot out.
         if(event_state.registered[code].events.size() == 0) {
-            return FALSE;
+            return false;
         }
 
         u64 registered_count = event_state.registered[code].events.size();
         for(auto item : event_state.registered[code].events) {
             if(item.callback(code, sender, item.listener, context)) {
                 // Message has been handled, do not send to other listeners.
-                return TRUE;
+                return true;
             }
         }
 
         // Not found.
-        return FALSE;
+        return false;
     }
 } // namespace Quasar

@@ -53,6 +53,7 @@ namespace Quasar
         // Shutdown Engine
         QS_EVENT.Unregister(EVENT_CODE_RESIZED, 0, application_on_resized);
 
+        QS_EVENT.shutdown();
         Log::shutdown();
     }
 
@@ -65,15 +66,15 @@ namespace Quasar
 
             if (width == 0 || height == 0) {
                 QS_CORE_INFO("Application suspended")
-                QS_APP_STATE.suspended = TRUE;
+                QS_APP_STATE.suspended = true;
             }
             else {
-                QS_APP_STATE.suspended = FALSE;
+                QS_APP_STATE.suspended = true;
             }
 
-            return TRUE;
+            return true;
         }
-        return FALSE;
+        return false;
     }
 
 

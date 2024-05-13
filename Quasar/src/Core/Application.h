@@ -15,7 +15,7 @@ namespace Quasar
 
         f32 dt;
 
-        b8 suspended = FALSE;
+        b8 suspended = false;
     } app_state;
 
     class QS_API Application

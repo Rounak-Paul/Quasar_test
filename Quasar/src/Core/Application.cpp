@@ -1,5 +1,7 @@
 #include "Application.h"
 
+#include <Renderer/RendererAPI.h>
+
 namespace Quasar
 {
     Application* Application::instance = nullptr;
@@ -16,6 +18,9 @@ namespace Quasar
         QS_CORE_INFO("Initializing Event System...")
         if (!Event::init()) {QS_CORE_ERROR("Event system failed to Initialize")}
 
+        QS_CORE_INFO("Initializing Renderer...")
+        if (!QS_RENDERER_API.init(state.app_name)) {QS_CORE_ERROR("Renderer failed to Initialize")}
+
         QS_EVENT.Register(EVENT_CODE_RESIZED, 0, application_on_resized);
     }
 
@@ -29,11 +34,11 @@ namespace Quasar
         f32 clk_1Hz = 0.;
 
         while(!window.should_close()) {
-            window.poll_events();
             if (state.suspended) { 
                 window.wait_events();
                 continue; 
             } 
+            window.poll_events();
 
             // clock update and dt
             current_time = std::chrono::high_resolution_clock::now();
@@ -53,6 +58,8 @@ namespace Quasar
         // Shutdown Engine
         QS_EVENT.Unregister(EVENT_CODE_RESIZED, 0, application_on_resized);
 
+        QS_RENDERER_API.shutdown();
+        QS_EVENT.shutdown();
         Log::shutdown();
     }
 

@@ -5,7 +5,7 @@
 
 namespace Quasar
 {
-	Window::Window(u32 w, u32 h, std::string name) : width{w}, height{h}, windowName{name} 
+	Window::Window(u32 w, u32 h, String name) : width{w}, height{h}, windowName{name} 
 	{
 		glfwInit();
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);

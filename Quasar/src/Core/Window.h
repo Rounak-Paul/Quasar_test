@@ -9,7 +9,7 @@ namespace Quasar
 	class Window
 	{
 	public:
-		Window(u32 w, u32 h, std::string name);
+		Window(u32 w, u32 h, String name);
 		~Window();
 
 		Window(const Window&) = delete;
@@ -30,7 +30,7 @@ namespace Quasar
 		u32 height;
 		b8 framebufferResized = FALSE;
 
-		std::string windowName;
+		String windowName;
 		GLFWwindow* window;
 	};
 }

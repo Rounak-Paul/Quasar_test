@@ -19,6 +19,10 @@ namespace Quasar
         return true;
     }
 
+    void Event::shutdown() {
+        
+    }
+
     b8 Event::Register(u16 code, void* listener, PFN_on_event on_event) {
         size_t registered_count = event_state.registered[code].events.size();
         for(size_t i = 0; i < registered_count; ++i) {

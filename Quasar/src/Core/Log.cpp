@@ -48,7 +48,7 @@ namespace Quasar
         va_end(arg_ptr);
 
         char out_msg1[32000];
-        snprintf(out_msg1, sizeof(out_msg1), "%s%s%s%s\n","\033[1;45m[APP]\033[0m ", level_strings[level], out_msg, "\033[0m");
+        snprintf(out_msg1, sizeof(out_msg1), "%s%s%s%s\n","\033[1;42m[APP]   \033[0m ", level_strings[level], out_msg, "\033[0m");
         std::cout << out_msg1;
     }
 

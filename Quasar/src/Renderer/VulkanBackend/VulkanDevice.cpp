@@ -180,12 +180,10 @@ void VulkanDevice::Destroy() {
 
     if (!m_swapchainSupport.formats.empty()) {
         m_swapchainSupport.formats.clear();
-        m_swapchainSupport.formatCount = 0;
     }
 
     if (!m_swapchainSupport.presentModes.empty()) {
         m_swapchainSupport.presentModes.clear();
-        m_swapchainSupport.presentModeCount = 0;
     }
 
     m_swapchainSupport.capabilities = {};
@@ -436,7 +434,7 @@ b8 PhysicalDeviceMeetsRequirements(
             surface,
             outSwapchainSupport);
 
-        if (outSwapchainSupport->formatCount < 1 || outSwapchainSupport->presentModeCount < 1) {
+        if (outSwapchainSupport->formats.size() < 1 || outSwapchainSupport->presentModes.size() < 1) {
             if (!outSwapchainSupport->formats.empty()) {
                 outSwapchainSupport->formats.clear();
             }
@@ -505,39 +503,41 @@ void QuerySwapchainSupport(
         &outSupportInfo->capabilities));
 
     // Surface formats
+    u32 formatCount;
     VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(
         physical_device,
         surface,
-        &outSupportInfo->formatCount,
+        &formatCount,
         nullptr));
 
-    if (outSupportInfo->formatCount != 0) {
+    if (formatCount != 0) {
         if (!outSupportInfo->formats.empty()) {
             outSupportInfo->formats.clear();
         }
-        outSupportInfo->formats.resize(outSupportInfo->formatCount);
+        outSupportInfo->formats.resize(formatCount);
         VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(
             physical_device,
             surface,
-            &outSupportInfo->formatCount,
+            &formatCount,
             outSupportInfo->formats.data()));
     }
 
     // Present modes
+    u32 presentModeCount;
     VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(
         physical_device,
         surface,
-        &outSupportInfo->presentModeCount,
+        &presentModeCount,
         nullptr));
-    if (outSupportInfo->presentModeCount != 0) {
+    if (presentModeCount != 0) {
         if (outSupportInfo->presentModes.empty()) {
             outSupportInfo->presentModes.clear();
-            outSupportInfo->presentModes.resize(outSupportInfo->presentModeCount);
+            outSupportInfo->presentModes.resize(presentModeCount);
         }
         VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(
             physical_device,
             surface,
-            &outSupportInfo->presentModeCount,
+            &presentModeCount,
             outSupportInfo->presentModes.data()));
     }
 }

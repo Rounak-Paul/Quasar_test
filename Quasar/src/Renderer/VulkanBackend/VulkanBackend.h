@@ -3,6 +3,7 @@
 #include <qspch.h>
 
 #include "VulkanDevice.h"
+#include "VulkanSwapchain.h"
 
 namespace Quasar::RendererBackend
 {
@@ -18,8 +19,8 @@ namespace Quasar::RendererBackend
         VkInstance m_vkInstance;
         VkAllocationCallbacks* m_allocator = nullptr;
         VkSurfaceKHR m_vkSurface;
-        VulkanDevice* device = nullptr;
-        // vulkan_device device;
+        VulkanDevice* m_device = nullptr;
+        VulkanSwapchain* m_swapchain = nullptr;
 
         u16 m_width, m_height;
 

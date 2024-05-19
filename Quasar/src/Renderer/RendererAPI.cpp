@@ -14,8 +14,8 @@ namespace Quasar
             u16 width = QS_MAIN_WINDOW.GetExtent().width*2;
             u16 height = QS_MAIN_WINDOW.GetExtent().height*2;
         #else
-            u16 width = QS_MAIN_WINDOW.get_extent().width;
-            u16 height = QS_MAIN_WINDOW.get_extent().height;
+            u16 width = QS_MAIN_WINDOW.GetExtent().width;
+            u16 height = QS_MAIN_WINDOW.GetExtent().height;
         #endif
         s_instance->m_backend = std::make_unique<RendererBackend::Backend>();
         if(!s_instance->m_backend->Init(appName, width, height)) {

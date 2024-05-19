@@ -42,6 +42,6 @@ namespace Quasar::RendererBackend {
         private:
         VkAllocationCallbacks* m_allocator;
 
-        b8 SelectPhysicalDevice(const VkInstance& vkInstance, const VkSurfaceKHR& vkSurface);
+        b8 SelectPhysicalDevice(const VkInstance& vkInstance, const VkSurfaceKHR& vkSurface, b8 discreteGPU);
     };
 }

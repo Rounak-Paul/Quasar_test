@@ -40,8 +40,11 @@ void QuerySwapchainSupport(
             VulkanSwapchainSupportInfo* outSupportInfo);
 
 VulkanDevice::VulkanDevice(const VkInstance& vkInstance, const VkSurfaceKHR& vkSurface, VkAllocationCallbacks* allocator) : m_allocator{allocator} {
-    if (!SelectPhysicalDevice(vkInstance, vkSurface)) {
-        QS_CORE_FATAL("No device with Vulkan support found!")
+    if (!SelectPhysicalDevice(vkInstance, vkSurface, true)) {
+        QS_CORE_WARN("No Discrete GPU with Vulkan support found. Defaulting to Integrated GPU.")
+        if (!SelectPhysicalDevice(vkInstance, vkSurface, false)) {
+            QS_CORE_FATAL("No Device with Vulkan support found")
+        }
     }
 
     // NOTE: Do not create additional queues for shared indices.
@@ -192,7 +195,7 @@ void VulkanDevice::Destroy() {
     m_transferQueueIndex = -1;
 }
 
-b8 VulkanDevice::SelectPhysicalDevice(const VkInstance& vkInstance, const VkSurfaceKHR& vkSurface) {
+b8 VulkanDevice::SelectPhysicalDevice(const VkInstance& vkInstance, const VkSurfaceKHR& vkSurface, b8 discreteGPU) {
     uint32_t physical_device_count = 0;
     VK_CHECK(vkEnumeratePhysicalDevices(vkInstance, &physical_device_count, nullptr));
     if (physical_device_count == 0) {
@@ -234,7 +237,7 @@ b8 VulkanDevice::SelectPhysicalDevice(const VkInstance& vkInstance, const VkSurf
         // NOTE: Enable this if compute will be required.
         // requirements.compute = TRUE;
         requirements.samplerAnisotropy = true;
-        requirements.discreteGPU = true;
+        requirements.discreteGPU = discreteGPU;
         requirements.deviceExtensionNames = {};
         requirements.deviceExtensionNames.emplace_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 #ifdef QS_PLATFORM_APPLE
@@ -314,7 +317,6 @@ b8 VulkanDevice::SelectPhysicalDevice(const VkInstance& vkInstance, const VkSurf
 
     // Ensure a device was selected
     if (!m_physicalDevice) {
-        QS_CORE_ERROR("No physical devices were found which meet the requirements.");
         return false;
     }
 
@@ -344,6 +346,7 @@ b8 PhysicalDeviceMeetsRequirements(
             QS_CORE_INFO("Device is not a discrete GPU, and one is required. Skipping.");
             return false;
         }
+        QS_CORE_INFO("Discrete GPU found.");
     }
 
     u32 queue_family_count = 0;

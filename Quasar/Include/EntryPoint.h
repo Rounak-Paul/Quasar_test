@@ -1,10 +1,10 @@
 #pragma once 
 
-extern Quasar::Application* Quasar::create_application();
+extern Quasar::Application* Quasar::CreateApplication();
 
 int main(int argc, char** argv)
 {
-	auto app = Quasar::create_application();
+	auto app = Quasar::CreateApplication();
 	app->run();
 	delete app;
 

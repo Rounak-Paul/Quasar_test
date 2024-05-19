@@ -13,6 +13,8 @@
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+
+namespace Quasar {
 // Unsigned int types.
 
 /** @brief Unsigned 8-bit integer */
@@ -116,13 +118,13 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 
 // TODO: remove after adding custom math library
 /** @brief Assert glm::mat2 to be 4*2*2 bytes.*/
-STATIC_ASSERT(sizeof(glm::mat2) == 4*2*2, "Expected f64 to be 8 bytes.");
+STATIC_ASSERT(sizeof(glm::mat2) == 4*2*2, "Expected f32 to be 4 bytes.");
 
 /** @brief Assert glm::mat3 to be 4*3*3 bytes.*/
-STATIC_ASSERT(sizeof(glm::mat3) == 4*3*3, "Expected f64 to be 8 bytes.");
+STATIC_ASSERT(sizeof(glm::mat3) == 4*3*3, "Expected f32 to be 4 bytes.");
 
 /** @brief Assert glm::mat4 to be 4*4*4 bytes.*/
-STATIC_ASSERT(sizeof(glm::mat4) == 4*4*4, "Expected f64 to be 8 bytes.");
+STATIC_ASSERT(sizeof(glm::mat4) == 4*4*4, "Expected f32 to be 4 bytes.");
 
 /** @brief True.*/
 #define TRUE true
@@ -176,21 +178,21 @@ STATIC_ASSERT(sizeof(glm::mat4) == 4*4*4, "Expected f64 to be 8 bytes.");
 #define QS_INLINE __attribute__((always_inline)) inline
 
 /** @brief No-inline qualifier */
-#define QSNOINLINE __attribute__((noinline))
+#define QS_NOINLINE __attribute__((noinline))
 #elif defined(_MSC_VER)
 
 /** @brief Inline qualifier */
 #define QS_INLINE __forceinline
 
 /** @brief No-inline qualifier */
-#define QSNOINLINE __declspec(noinline)
+#define QS_NOINLINE __declspec(noinline)
 #else
 
 /** @brief Inline qualifier */
 #define QS_INLINE static inline
 
 /** @brief No-inline qualifier */
-#define QSNOINLINE
+#define QS_NOINLINE
 #endif
 
 /** @brief Gets the number of bytes from amount of gibibytes (GiB) (1024*1024*1024) */
@@ -213,4 +215,5 @@ QS_INLINE u64 get_aligned(u64 operand, u64 granularity) {
 
 QS_INLINE range get_aligned_range(u64 offset, u64 size, u64 granularity) {
     return range{get_aligned(offset, granularity), get_aligned(size, granularity)};
+}
 }

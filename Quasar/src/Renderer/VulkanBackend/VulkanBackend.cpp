@@ -6,47 +6,47 @@ namespace Quasar::RendererBackend
 
     }
 
-    b8 Backend::init(String app_name, u16 w, u16 h) {
-        width = w;
-        height = h;
+    b8 Backend::Init(String appName, u16 w, u16 h) {
+        m_width = w;
+        m_height = h;
 #ifdef QS_DEBUG 
-        if (!check_validation_layer_support()) {
+        if (!CheckValidationLayerSupport()) {
             QS_CORE_ERROR("validation layers requested, but not available!");
         }
 #endif
 
-        VkApplicationInfo app_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
-        app_info.pApplicationName = app_name.c_str();
-        app_info.applicationVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);
-        app_info.pEngineName = "Quasar Engine";
-        app_info.engineVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);
-        app_info.apiVersion = VK_API_VERSION_1_3;
+        VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
+        appInfo.pApplicationName = appName.c_str();
+        appInfo.applicationVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);
+        appInfo.pEngineName = "Quasar Engine";
+        appInfo.engineVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);
+        appInfo.apiVersion = VK_API_VERSION_1_3;
 
-        VkInstanceCreateInfo create_info{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
-        create_info.pApplicationInfo = &app_info;
+        VkInstanceCreateInfo createInfo{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+        createInfo.pApplicationInfo = &appInfo;
 
-        auto extensions = get_required_extensions();
+        auto extensions = GetRequiredExtensions();
 
         #ifdef QS_PLATFORM_APPLE
-            create_info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+            createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
         #endif
-            create_info.enabledExtensionCount = extensions.size();
-            create_info.ppEnabledExtensionNames = extensions.data();
+            createInfo.enabledExtensionCount = extensions.size();
+            createInfo.ppEnabledExtensionNames = extensions.data();
 
         #ifdef QS_DEBUG
-            VkDebugUtilsMessengerCreateInfoEXT debug_create_info;
-            create_info.enabledLayerCount = static_cast<uint32_t>(validation_layers.size());
-            create_info.ppEnabledLayerNames = validation_layers.data();
+            VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
+            createInfo.enabledLayerCount = static_cast<uint32_t>(m_validationLayers.size());
+            createInfo.ppEnabledLayerNames = m_validationLayers.data();
 
-            populate_debug_messenger_create_info(debug_create_info);
-            create_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debug_create_info;
+            PopulateDebugMessengerCreateInfo(debugCreateInfo);
+            createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
         #else
-            create_info.enabledLayerCount = 0;
-            create_info.ppEnabledLayerNames = 0;
+            createInfo.enabledLayerCount = 0;
+            createInfo.ppEnabledLayerNames = 0;
         #endif
 
         QS_CORE_INFO("Creating Vulkan instance...");
-        VkResult result = vkCreateInstance(&create_info, allocator, &instance);
+        VkResult result = vkCreateInstance(&createInfo, allocator, &m_instance);
         if (result != VK_SUCCESS) {
             QS_CORE_ERROR("Instance creation failed with VkResult: %d", result)
             return false;
@@ -54,22 +54,22 @@ namespace Quasar::RendererBackend
 
         return true;
     }
-    void Backend::shutdown() {
+    void Backend::Shutdown() {
 
     }
 
-    b8 Backend::check_validation_layer_support() {
-        uint32_t layer_count;
-        vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
+    b8 Backend::CheckValidationLayerSupport() {
+        uint32_t layerCount;
+        vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
-        std::vector<VkLayerProperties> available_layers(layer_count);
-        vkEnumerateInstanceLayerProperties(&layer_count, available_layers.data());
+        std::vector<VkLayerProperties> availableLayers(layerCount);
+        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
-        for (const char* layer_name : validation_layers) {
+        for (const char* layerName : m_validationLayers) {
             bool layerFound = false;
 
-            for (const auto& layer_properties : available_layers) {
-                if (strcmp(layer_name, layer_properties.layerName) == 0) {
+            for (const auto& it : availableLayers) {
+                if (strcmp(layerName, it.layerName) == 0) {
                     layerFound = true;
                     break;
                 }
@@ -81,7 +81,7 @@ namespace Quasar::RendererBackend
         return true;
     }
 
-    std::vector<const char*> Backend::get_required_extensions() {
+    std::vector<const char*> Backend::GetRequiredExtensions() {
         uint32_t glfwExtensionCount = 0;
         const char** glfwExtensions;
         glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -124,7 +124,7 @@ namespace Quasar::RendererBackend
         return VK_FALSE;
     }
 
-    void Backend::populate_debug_messenger_create_info(
+    void Backend::PopulateDebugMessengerCreateInfo(
         VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
         createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;

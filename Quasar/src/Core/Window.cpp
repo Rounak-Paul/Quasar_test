@@ -35,7 +35,7 @@ namespace Quasar
 		qs_window->width = width;
 		qs_window->height = height;
 		qs_window->framebufferResized = TRUE;
-		event_context context;
+		EventContext context;
 		context.data.u16[0] = width;
 		context.data.u16[1] = height;
 		QS_EVENT.Execute(EVENT_CODE_RESIZED, nullptr, context);

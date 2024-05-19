@@ -1,6 +1,5 @@
 #pragma once
 #include <qspch.h>
-#include <Defines.h>
 
 #include <string>
 

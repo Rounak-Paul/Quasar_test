@@ -13,14 +13,14 @@ namespace Quasar
         RendererAPI(const RendererAPI&) = delete;
 		RendererAPI& operator=(const RendererAPI&) = delete;
 
-        static RendererAPI& get_instance() {return *instance;}
+        static RendererAPI& GetInstance() {return *s_instance;}
 
-        static b8 init(String app_name);
-        void shutdown();
+        static b8 Init(String appName);
+        void Shutdown();
 
         private:
-        static RendererAPI* instance;
-        RendererBackend::Backend backend;
+        static RendererAPI* s_instance;
+        RendererBackend::Backend m_backend;
     };
-    #define QS_RENDERER_API RendererAPI::get_instance()
+    #define QS_RENDERER_API RendererAPI::GetInstance()
 } // namespace Quasar

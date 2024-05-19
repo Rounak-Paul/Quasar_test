@@ -28,7 +28,7 @@ namespace Quasar
         for(size_t i = 0; i < registeredCount; ++i) {
             if(m_eventState.registered[code].events[i].listener == listener) {
                 QS_CORE_WARN("Duplicate event listener was issued!");
-                return FALSE;
+                return false;
             }
         }
 
@@ -38,14 +38,14 @@ namespace Quasar
         event.callback = on_event;
         m_eventState.registered[code].events.push_back(event);
 
-        return TRUE;
+        return true;
     }
 
     b8 Event::Unregister(u16 code, void* listener, PFN_on_event on_event) {
         // On nothing is registered for the code, boot out.
         if(m_eventState.registered[code].events.size() == 0) {
             QS_CORE_WARN("Event list is empty");
-            return FALSE;
+            return false;
         }
 
         u64 registeredCount = m_eventState.registered[code].events.size();
@@ -59,24 +59,24 @@ namespace Quasar
         }
 
         // Not found.
-        return FALSE;
+        return false;
     }
 
     b8 Event::Execute(u16 code, void* sender, EventContext context) {
         // If nothing is registered for the code, boot out.
         if(m_eventState.registered[code].events.size() == 0) {
-            return FALSE;
+            return false;
         }
 
         u64 registered_count = m_eventState.registered[code].events.size();
         for(auto item : m_eventState.registered[code].events) {
             if(item.callback(code, sender, item.listener, context)) {
                 // Message has been handled, do not send to other listeners.
-                return TRUE;
+                return true;
             }
         }
 
         // Not found.
-        return FALSE;
+        return false;
     }
 } // namespace Quasar

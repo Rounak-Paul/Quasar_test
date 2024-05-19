@@ -14,7 +14,7 @@ namespace Quasar
 
         f32 dt;
 
-        b8 suspended = FALSE;
+        b8 suspended = false;
     } AppState;
 
     class QS_API Application
@@ -29,7 +29,7 @@ namespace Quasar
         static Application& GetInstance() {return *s_instance;}
         Window& GetMainWindow() {return m_window;}
         AppState& GetAppState() {return m_state;}
-        void run();
+        void Run();
     
     private:
         static Application* s_instance;

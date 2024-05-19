@@ -28,17 +28,17 @@ namespace Quasar
         
     }
 
-    void Application::run() {
+    void Application::Run() {
         m_prevTime = std::chrono::high_resolution_clock::now();
         u32 frameCount = 0;
         f32 clk1Hz = 0.;
 
-        while(!m_window.should_close()) {
+        while(!m_window.ShouldClose()) {
             if (m_state.suspended) { 
-                m_window.wait_events();
+                m_window.WaitEvents();
                 continue; 
             } 
-            m_window.poll_events();
+            m_window.PollEvents();
 
             // clock update and dt
             m_currentTime = std::chrono::high_resolution_clock::now();
@@ -72,15 +72,15 @@ namespace Quasar
 
             if (width == 0 || height == 0) {
                 QS_CORE_INFO("Application suspended")
-                QS_APP_STATE.suspended = TRUE;
+                QS_APP_STATE.suspended = true;
             }
             else {
-                QS_APP_STATE.suspended = FALSE;
+                QS_APP_STATE.suspended = false;
             }
 
-            return TRUE;
+            return true;
         }
-        return FALSE;
+        return false;
     }
 
 

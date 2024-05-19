@@ -1,5 +1,7 @@
 #include "VulkanBackend.h"
 
+#include <Core/Application.h>
+
 namespace Quasar::RendererBackend
 {
     Backend::Backend() {
@@ -45,12 +47,22 @@ namespace Quasar::RendererBackend
             createInfo.ppEnabledLayerNames = 0;
         #endif
 
+        // Instance
         QS_CORE_INFO("Creating Vulkan instance...");
-        VkResult result = vkCreateInstance(&createInfo, allocator, &m_instance);
+        VkResult result = vkCreateInstance(&createInfo, m_allocator, &m_instance);
         if (result != VK_SUCCESS) {
             QS_CORE_ERROR("Instance creation failed with VkResult: %d", result)
             return false;
         }
+
+        // Surface
+        QS_CORE_INFO("Creating Vulkan surface...");
+        auto res = glfwCreateWindowSurface(m_instance, QS_MAIN_WINDOW.GetGLFWwindow(), m_allocator, &m_surface);
+		if (res != VK_SUCCESS)
+		{
+			QS_CORE_ERROR("Failed to create Window Surface, VkResult: %d", res);
+			return false;
+		}
 
         return true;
     }
@@ -100,7 +112,7 @@ namespace Quasar::RendererBackend
         return requiredExtensions;
     }
 
-    static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
+    static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
@@ -133,7 +145,7 @@ namespace Quasar::RendererBackend
         createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
             VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-        createInfo.pfnUserCallback = debug_callback;
+        createInfo.pfnUserCallback = DebugCallback;
         createInfo.pUserData = nullptr;  // Optional
     }
 } // namespace Quasar::RendererBackend

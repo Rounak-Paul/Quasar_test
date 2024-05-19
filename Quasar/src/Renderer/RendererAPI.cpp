@@ -15,8 +15,8 @@ namespace Quasar
         RendererAPI();
 
         #ifdef QS_PLATFORM_APPLE
-            u16 width = QS_MAIN_WINDOW.get_extent().width*2;
-            u16 height = QS_MAIN_WINDOW.get_extent().height*2;
+            u16 width = QS_MAIN_WINDOW.GetExtent().width*2;
+            u16 height = QS_MAIN_WINDOW.GetExtent().height*2;
         #else
             u16 width = QS_MAIN_WINDOW.get_extent().width;
             u16 height = QS_MAIN_WINDOW.get_extent().height;

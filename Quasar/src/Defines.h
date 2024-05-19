@@ -13,8 +13,17 @@
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <memory>
+
 
 namespace Quasar {
+
+template<typename T> 
+using Scope = std::unique_ptr<T>;
+
+template<typename T>
+using Ref = std::shared_ptr<T>;
+
 // Unsigned int types.
 
 /** @brief Unsigned 8-bit integer */
@@ -125,12 +134,6 @@ STATIC_ASSERT(sizeof(glm::mat3) == 4*3*3, "Expected f32 to be 4 bytes.");
 
 /** @brief Assert glm::mat4 to be 4*4*4 bytes.*/
 STATIC_ASSERT(sizeof(glm::mat4) == 4*4*4, "Expected f32 to be 4 bytes.");
-
-/** @brief True.*/
-#define TRUE true
-
-/** @brief False. */
-#define FALSE false
 
 /**
  * @brief Any id set to this should be considered invalid,

@@ -14,7 +14,9 @@ namespace Quasar::RendererBackend
 
         private:
         VkInstance m_instance; // Not an instance for singleton class
-        VkAllocationCallbacks* allocator = nullptr;
+        VkAllocationCallbacks* m_allocator = nullptr;
+        VkSurfaceKHR m_surface;
+        // vulkan_device device;
 
         u16 m_width, m_height;
 

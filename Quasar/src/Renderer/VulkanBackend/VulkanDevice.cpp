@@ -47,22 +47,24 @@ VulkanDevice::VulkanDevice(const VkInstance& vkInstance, const VkSurfaceKHR& vkS
     // NOTE: Do not create additional queues for shared indices.
     b8 presentSharesGraphicsQueue = m_graphicsQueueIndex == m_presentQueueIndex;
     b8 transferSharesGraphicsQueue = m_graphicsQueueIndex == m_transferQueueIndex;
-    u32 index_count = 1;
-    if (!presentSharesGraphicsQueue) {
-        index_count++;
+    b8 presentSharesTransferQueue = m_presentQueueIndex == m_transferQueueIndex;
+    
+    std::vector<u32> indices;
+    indices.push_back(m_graphicsQueueIndex);
+
+    if (!presentSharesGraphicsQueue && std::find(indices.begin(), indices.end(), m_presentQueueIndex) == indices.end()) {
+        indices.push_back(m_presentQueueIndex);
     }
-    if (!transferSharesGraphicsQueue) {
-        index_count++;
+
+    if (!transferSharesGraphicsQueue && std::find(indices.begin(), indices.end(), m_transferQueueIndex) == indices.end()) {
+        indices.push_back(m_transferQueueIndex);
     }
-    std::vector<u32> indices(index_count);
-    u8 index = 0;
-    indices[index++] = m_graphicsQueueIndex;
-    if (!presentSharesGraphicsQueue) {
-        indices[index++] = m_presentQueueIndex;
+
+    if (!presentSharesTransferQueue && std::find(indices.begin(), indices.end(), m_transferQueueIndex) == indices.end()) {
+        indices.push_back(m_transferQueueIndex);
     }
-    if (!transferSharesGraphicsQueue) {
-        indices[index++] = m_transferQueueIndex;
-    }
+
+    u32 index_count = indices.size();
 
     VkQueueFamilyProperties props[32];
     u32 propCount;

@@ -65,10 +65,18 @@ namespace Quasar::RendererBackend
             return false;
         }
 
+        // Device
+        QS_CORE_INFO("Device Selection")
+        device = new VulkanDevice(m_vkInstance, m_vkSurface, m_allocator);
+
         return true;
     }
 
     void Backend::Shutdown() {
+        if (device != nullptr) {
+            QS_CORE_DEBUG("Destroying Vulkan device");
+            device->Destroy();
+        }
         if (m_vkSurface != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Vulkan surface");
             vkDestroySurfaceKHR(m_vkInstance, m_vkSurface, m_allocator);

@@ -75,6 +75,7 @@ namespace Quasar
                 QS_APP_STATE.suspended = true;
             }
             else {
+
                 QS_APP_STATE.suspended = false;
             }
 

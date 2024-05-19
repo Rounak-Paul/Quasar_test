@@ -48,13 +48,14 @@ namespace Quasar
             return false;
         }
 
+
         u64 registeredCount = m_eventState.registered[code].events.size();
         for (u64 i = 0; i < registeredCount; ++i) {
-            RegisteredEvent &e = m_eventState.registered[code].events[i]; // Use reference to modify the element if needed
+            RegisteredEvent &e = m_eventState.registered[code].events[i];
             if (e.listener == listener && e.callback == on_event) {
                 // Found the element to remove
                 m_eventState.registered[code].events.erase(m_eventState.registered[code].events.begin() + i);
-                return true; // Assuming TRUE is a typo and you meant true (lowercase)
+                return true;
             }
         }
 

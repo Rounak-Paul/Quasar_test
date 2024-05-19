@@ -6,13 +6,9 @@ namespace Quasar
 {
     RendererAPI* RendererAPI::s_instance = nullptr;
 
-    RendererAPI::RendererAPI() {
-        assert(!s_instance);
-        s_instance = this;
-    }
-
     b8 RendererAPI::Init(String appName) {
-        RendererAPI();
+        assert(!s_instance);
+        s_instance = new RendererAPI();
 
         #ifdef QS_PLATFORM_APPLE
             u16 width = QS_MAIN_WINDOW.GetExtent().width*2;
@@ -21,7 +17,8 @@ namespace Quasar
             u16 width = QS_MAIN_WINDOW.get_extent().width;
             u16 height = QS_MAIN_WINDOW.get_extent().height;
         #endif
-        if(!QS_RENDERER_API.m_backend.Init(appName, width, height)) {
+        s_instance->m_backend = std::make_unique<RendererBackend::Backend>();
+        if(!s_instance->m_backend->Init(appName, width, height)) {
             return false;
         }
 
@@ -29,6 +26,6 @@ namespace Quasar
     }
 
     void RendererAPI::Shutdown() {
-
+        m_backend->Shutdown();
     }
 } // namespace Quasar

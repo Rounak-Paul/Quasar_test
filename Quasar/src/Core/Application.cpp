@@ -68,7 +68,7 @@ namespace Quasar
             u16 width = context.data.u16[0];
             u16 height = context.data.u16[1];
 
-            QS_CORE_TRACE("w/h: %d/%d", width, height)
+            QS_CORE_TRACE("[ %d : %d ]", width, height)
 
             if (width == 0 || height == 0) {
                 QS_CORE_INFO("Application suspended")

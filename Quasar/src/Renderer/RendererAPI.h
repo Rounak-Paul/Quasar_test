@@ -7,8 +7,8 @@ namespace Quasar
 {
     class RendererAPI {
         public:
-        RendererAPI();
-        ~RendererAPI() = default;
+        RendererAPI() {};
+        ~RendererAPI() {};
 
         RendererAPI(const RendererAPI&) = delete;
 		RendererAPI& operator=(const RendererAPI&) = delete;
@@ -20,7 +20,7 @@ namespace Quasar
 
         private:
         static RendererAPI* s_instance;
-        RendererBackend::Backend m_backend;
+        Scope<RendererBackend::Backend> m_backend;
     };
     #define QS_RENDERER_API RendererAPI::GetInstance()
 } // namespace Quasar

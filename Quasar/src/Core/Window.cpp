@@ -25,6 +25,7 @@ namespace Quasar
 
 	Window::~Window()
 	{
+		QS_CORE_INFO("Destroying main window")
 		glfwDestroyWindow(m_window);
 		glfwTerminate();
 	}

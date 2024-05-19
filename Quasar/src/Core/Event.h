@@ -44,8 +44,8 @@ namespace Quasar
 
     class QS_API Event {
         public:
-        Event();
-        ~Event();
+        Event() {};
+        ~Event() {};
 
         Event(const Event&) = delete;
 		Event& operator=(const Event&) = delete;
@@ -60,7 +60,7 @@ namespace Quasar
         b8 Execute(u16 code, void* sender, EventContext context);
 
         private:
-        EventSystemState m_eventState;
+        EventSystemState* m_eventState;
         static Event* s_instance;
     };
 

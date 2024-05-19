@@ -12,6 +12,9 @@ namespace Quasar::RendererBackend
         Backend();
         ~Backend() = default;
 
+        Backend(const Backend&) = delete;
+		Backend& operator=(const Backend&) = delete;
+
         b8 Init(String appName, u16 w, u16 h);
         void Shutdown();
 

@@ -14,6 +14,9 @@ namespace Quasar::RendererBackend {
         VulkanDevice(const VkInstance& vkInstance, const VkSurfaceKHR& vkSurface, VkAllocationCallbacks* allocator);
         ~VulkanDevice() = default;
 
+        VulkanDevice(const VulkanDevice&) = delete;
+		VulkanDevice& operator=(const VulkanDevice&) = delete;
+
         void Destroy();
         b8 DetectDepthFormat();
 

@@ -1,6 +1,5 @@
 #pragma once
 #include <qspch.h>
-#include <Defines.h>
 
 #include <string>
 
@@ -9,28 +8,28 @@ namespace Quasar
 	class Window
 	{
 	public:
-		Window(u32 w, u32 h, std::string name);
+		Window(u32 w, u32 h, String name);
 		~Window();
 
 		Window(const Window&) = delete;
 		Window& operator=(const Window&) = delete;
 
-		inline b8 should_close() { return glfwWindowShouldClose(window); }
-		VkExtent2D get_extent() { return { static_cast<uint32_t>(width), static_cast<uint32_t>(height) }; }
-        QS_INLINE void poll_events() {glfwPollEvents();};
-		QS_INLINE void wait_events() {glfwWaitEvents();};
+		inline b8 ShouldClose() { return glfwWindowShouldClose(m_window); }
+		VkExtent2D GetExtent() { return { static_cast<uint32_t>(m_width), static_cast<uint32_t>(m_height) }; }
+        QS_INLINE void PollEvents() {glfwPollEvents();};
+		QS_INLINE void WaitEvents() {glfwWaitEvents();};
 		
-		GLFWwindow* get_GLFWwindow() const { return window; }
+		GLFWwindow* GetGLFWwindow() const { return m_window; }
 
 	private:
-		static void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
-		static void window_focus_callback(GLFWwindow* window, int focused);
+		static void FramebufferResizeCallback(GLFWwindow* window, int width, int height);
+		static void WindowFocusCallback(GLFWwindow* window, int focused);
 
-		u32 width;
-		u32 height;
-		b8 framebufferResized = false;
+		u32 m_width;
+		u32 m_height;
+		b8 m_framebufferResized = false;
 
-		std::string windowName;
-		GLFWwindow* window;
+		String m_windowName;
+		GLFWwindow* m_window;
 	};
 }

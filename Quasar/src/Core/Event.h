@@ -5,7 +5,7 @@
 
 namespace Quasar
 {
-    typedef struct event_context {
+    typedef struct EventContext {
         // 128 bytes
         union {
             i64 i64[2];
@@ -24,23 +24,23 @@ namespace Quasar
 
             char c[16];
         } data;
-    } event_context;
+    } EventContext;
 
-    typedef b8 (*PFN_on_event)(u16 code, void* sender, void* listener_inst, event_context data);
+    typedef b8 (*PFN_on_event)(u16 code, void* sender, void* listener_inst, EventContext data);
 
-    typedef struct registered_event {
+    typedef struct RegisteredEvent {
         void* listener;
         PFN_on_event callback;
-    } registered_event;
+    } RegisteredEvent;
 
-    typedef struct event_code_entry {
-        std::vector<registered_event> events;
-    } event_code_entry;
+    typedef struct EventCodeEntry {
+        std::vector<RegisteredEvent> events;
+    } EventCodeEntry;
 
-    typedef struct event_system_state {
+    typedef struct EventSystemState {
         // Lookup table for event codes.
-        event_code_entry registered[MAX_MESSAGE_CODES];
-    } event_system_state;
+        EventCodeEntry registered[MAX_MESSAGE_CODES];
+    } EventSystemState;
 
     class QS_API Event {
         public:
@@ -50,22 +50,22 @@ namespace Quasar
         Event(const Event&) = delete;
 		Event& operator=(const Event&) = delete;
 
-        static b8 init();
-        void shutdown();
+        static b8 Init();
+        void Shutdown();
 
-        static Event& get_instance() {return *instance;}
+        static Event& GetInstance() {return *s_instance;}
 
         b8 Register(u16 code, void* listener, PFN_on_event on_event);
         b8 Unregister(u16 code, void* listener, PFN_on_event on_event);
-        b8 Execute(u16 code, void* sender, event_context context);
+        b8 Execute(u16 code, void* sender, EventContext context);
 
         private:
-        event_system_state event_state;
-        static Event* instance;
+        EventSystemState m_eventState;
+        static Event* s_instance;
     };
 
     // System internal event codes. Application should use codes beyond 255.
-    typedef enum system_event_code {
+    typedef enum SystemEventCode {
         // Shuts the application down on the next frame.
         EVENT_CODE_APPLICATION_QUIT = 0x01,
 
@@ -126,7 +126,7 @@ namespace Quasar
         EVENT_CODE_DEBUG4 = 0x14,
 
         EVENT_CODE_MAX = 0xFF
-    } system_event_code;
+    } SystemEventCode;
 
-    #define QS_EVENT Event::get_instance()
+    #define QS_EVENT Event::GetInstance()
 } // namespace Quasar

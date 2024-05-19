@@ -24,6 +24,8 @@
 #include <GLFW/glfw3.h>
 
 // Customs
+#include <Defines.h>
+#include <Containers/String.h>
 #include <Core/Log.h>
 
 

@@ -2,6 +2,8 @@
 
 #include <qspch.h>
 
+#include "VulkanDevice.h"
+
 namespace Quasar::RendererBackend
 {
     class Backend {
@@ -16,6 +18,7 @@ namespace Quasar::RendererBackend
         VkInstance m_vkInstance;
         VkAllocationCallbacks* m_allocator = nullptr;
         VkSurfaceKHR m_vkSurface;
+        VulkanDevice* device = nullptr;
         // vulkan_device device;
 
         u16 m_width, m_height;

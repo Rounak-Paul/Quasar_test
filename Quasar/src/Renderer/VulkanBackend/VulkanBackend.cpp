@@ -1,10 +1,9 @@
 #include "VulkanBackend.h"
 #include <Core/Application.h>
-#include <iostream> // For demonstration purposes, include iostream for logging
 
 namespace Quasar::RendererBackend
 {
-    Backend::Backend() : m_vkInstance(VK_NULL_HANDLE), m_vkSurface(VK_NULL_HANDLE) {}
+    Backend::Backend() {}
 
     b8 Backend::Init(String appName, u16 w, u16 h) {
         m_width = w;
@@ -60,29 +59,36 @@ namespace Quasar::RendererBackend
         result = glfwCreateWindowSurface(m_vkInstance, window, m_allocator, &m_vkSurface);
         if (result != VK_SUCCESS) {
             QS_CORE_ERROR("Failed to create Window Surface, VkResult: %d", result);
-            vkDestroyInstance(m_vkInstance, m_allocator); // Clean up instance if surface creation fails
+            vkDestroyInstance(m_vkInstance, m_allocator);
             m_vkInstance = VK_NULL_HANDLE;
             return false;
         }
 
         // Device
         QS_CORE_INFO("Device Selection")
-        device = new VulkanDevice(m_vkInstance, m_vkSurface, m_allocator);
+        m_device = new VulkanDevice(m_vkInstance, m_vkSurface, m_allocator);
+
+        // Swapchain
+        QS_CORE_DEBUG("Creating Swapchain")
+        m_swapchain = new VulkanSwapchain(m_device, m_vkSurface);
 
         return true;
     }
 
     void Backend::Shutdown() {
-        if (device != nullptr) {
+        if (m_swapchain != nullptr) {
+            QS_CORE_DEBUG("Destroying Swapchain");
+            m_swapchain->Destroy(m_device);
+        }
+        if (m_device != nullptr) {
             QS_CORE_DEBUG("Destroying Vulkan device");
-            device->Destroy();
+            m_device->Destroy();
         }
         if (m_vkSurface != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Vulkan surface");
             vkDestroySurfaceKHR(m_vkInstance, m_vkSurface, m_allocator);
             m_vkSurface = VK_NULL_HANDLE;
         }
-
         if (m_vkInstance != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Vulkan instance");
             vkDestroyInstance(m_vkInstance, m_allocator);
@@ -162,6 +168,6 @@ namespace Quasar::RendererBackend
             VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         createInfo.pfnUserCallback = DebugCallback;
-        createInfo.pUserData = nullptr;  // Optional
+        createInfo.pUserData = nullptr;
     }
 } // namespace Quasar::RendererBackend

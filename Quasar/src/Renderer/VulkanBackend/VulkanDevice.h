@@ -5,9 +5,7 @@
 namespace Quasar::RendererBackend {
     typedef struct VulkanSwapchainSupportInfo {
         VkSurfaceCapabilitiesKHR capabilities;
-        u32 formatCount;
         std::vector<VkSurfaceFormatKHR> formats;
-        u32 presentModeCount;
         std::vector<VkPresentModeKHR> presentModes;
     } VulkanSwapchainSupportInfo;
 
@@ -22,9 +20,9 @@ namespace Quasar::RendererBackend {
         VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
         VkDevice m_logicalDevice = VK_NULL_HANDLE;
         VulkanSwapchainSupportInfo m_swapchainSupport;
-        i32 m_graphicsQueueIndex;
-        i32 m_presentQueueIndex;
-        i32 m_transferQueueIndex;
+        u32 m_graphicsQueueIndex;
+        u32 m_presentQueueIndex;
+        u32 m_transferQueueIndex;
         b8 m_supportsDeviceLocalHostVisible;
 
         VkQueue m_graphicsQueue;

@@ -46,6 +46,8 @@ namespace Quasar
             m_state.dt = dt;
             clk1Hz += dt;
 
+            QS_RENDERER_API.DrawFrame();
+
             if (clk1Hz > 1.f) {
                 clk1Hz = 0.f;
                 QS_CORE_TRACE("FPS: %d", frameCount);

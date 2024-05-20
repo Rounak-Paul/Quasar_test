@@ -85,10 +85,30 @@ namespace Quasar::RendererBackend
         QS_CORE_DEBUG("Creating Swapchain Frame Buffers")
         FramebuffersCreate();
 
+        // Frame Buffers
+        QS_CORE_DEBUG("Creating Command Pool")
+        CommandPoolCreate();
+
+        // Frame Buffers
+        QS_CORE_DEBUG("Creating Command Buffer")
+        CommandBufferCreate();
+
+        // Frame Buffers
+        QS_CORE_DEBUG("Creating Sync Objects")
+        SyncObjectsCreate();
+
         return true;
     }
 
     void Backend::Shutdown() {
+        vkDeviceWaitIdle(m_device->m_logicalDevice);
+        vkDestroySemaphore(m_device->m_logicalDevice, m_renderFinishedSemaphore, nullptr);
+        vkDestroySemaphore(m_device->m_logicalDevice, m_imageAvailableSemaphore, nullptr);
+        vkDestroyFence(m_device->m_logicalDevice, m_inFlightFence, nullptr);
+        if (commandPool != VK_NULL_HANDLE) {
+            QS_CORE_DEBUG("Destroying Command Pool")
+            vkDestroyCommandPool(m_device->m_logicalDevice, commandPool, nullptr);
+        }
         if (!m_swapChainFramebuffers.empty()) {
             QS_CORE_DEBUG("Destroying Frame Buffers");
             for (auto it : m_swapChainFramebuffers) {
@@ -364,5 +384,135 @@ namespace Quasar::RendererBackend
                 QS_CORE_FATAL("failed to create framebuffer!");
             }
         }
+    }
+
+    void Backend::CommandPoolCreate() {
+
+        VkCommandPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        poolInfo.queueFamilyIndex = m_device->m_graphicsQueueIndex;
+
+        if (vkCreateCommandPool(m_device->m_logicalDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create command pool!");
+        }
+    }
+
+    void Backend::CommandBufferCreate() {
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.commandPool = commandPool;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandBufferCount = 1;
+
+        if (vkAllocateCommandBuffers(m_device->m_logicalDevice, &allocInfo, &commandBuffer) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate command buffers!");
+        }
+    }
+
+    void Backend::CommandBufferRecord(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+            throw std::runtime_error("failed to begin recording command buffer!");
+        }
+
+        VkRenderPassBeginInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassInfo.renderPass = m_renderPass;
+        renderPassInfo.framebuffer = m_swapChainFramebuffers[imageIndex];
+        renderPassInfo.renderArea.offset = {0, 0};
+        renderPassInfo.renderArea.extent = m_swapchain->m_swapChainExtent;
+
+        VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+        renderPassInfo.clearValueCount = 1;
+        renderPassInfo.pClearValues = &clearColor;
+
+        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+
+            VkViewport viewport{};
+            viewport.x = 0.0f;
+            viewport.y = 0.0f;
+            viewport.width = (float) m_swapchain->m_swapChainExtent.width;
+            viewport.height = (float) m_swapchain->m_swapChainExtent.height;
+            viewport.minDepth = 0.0f;
+            viewport.maxDepth = 1.0f;
+            vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+            VkRect2D scissor{};
+            scissor.offset = {0, 0};
+            scissor.extent = m_swapchain->m_swapChainExtent;
+            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);            
+
+            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+        vkCmdEndRenderPass(commandBuffer);
+
+        if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+            throw std::runtime_error("failed to record command buffer!");
+        }
+    }
+
+    void Backend::SyncObjectsCreate() {
+        VkSemaphoreCreateInfo semaphoreInfo{};
+        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+        VkFenceCreateInfo fenceInfo{};
+        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+        if (vkCreateSemaphore(m_device->m_logicalDevice, &semaphoreInfo, nullptr, &m_imageAvailableSemaphore) != VK_SUCCESS ||
+            vkCreateSemaphore(m_device->m_logicalDevice, &semaphoreInfo, nullptr, &m_renderFinishedSemaphore) != VK_SUCCESS ||
+            vkCreateFence(m_device->m_logicalDevice, &fenceInfo, nullptr, &m_inFlightFence) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create synchronization objects for a frame!");
+        }
+    }
+
+    void Backend::DrawFrame() {
+        vkWaitForFences(m_device->m_logicalDevice, 1, &m_inFlightFence, VK_TRUE, UINT64_MAX);
+        vkResetFences(m_device->m_logicalDevice, 1, &m_inFlightFence);
+
+        uint32_t imageIndex;
+        vkAcquireNextImageKHR(m_device->m_logicalDevice, m_swapchain->m_swapChain, UINT64_MAX, m_imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+
+        vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
+        CommandBufferRecord(commandBuffer, imageIndex);
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+        VkSemaphore waitSemaphores[] = {m_imageAvailableSemaphore};
+        VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = waitSemaphores;
+        submitInfo.pWaitDstStageMask = waitStages;
+
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &commandBuffer;
+
+        VkSemaphore signalSemaphores[] = {m_renderFinishedSemaphore};
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = signalSemaphores;
+
+        if (vkQueueSubmit(m_device->m_graphicsQueue, 1, &submitInfo, m_inFlightFence) != VK_SUCCESS) {
+            throw std::runtime_error("failed to submit draw command buffer!");
+        }
+
+        VkPresentInfoKHR presentInfo{};
+        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+        presentInfo.waitSemaphoreCount = 1;
+        presentInfo.pWaitSemaphores = signalSemaphores;
+
+        VkSwapchainKHR swapChains[] = {m_swapchain->m_swapChain};
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = swapChains;
+
+        presentInfo.pImageIndices = &imageIndex;
+
+        vkQueuePresentKHR(m_device->m_presentQueue, &presentInfo);
     }
 } // namespace Quasar::RendererBackend

@@ -19,6 +19,8 @@ namespace Quasar::RendererBackend
         b8 Init(String appName, u16 w, u16 h);
         void Shutdown();
 
+        void DrawFrame();
+
         private:
         VkInstance m_vkInstance;
         VkAllocationCallbacks* m_allocator = nullptr;
@@ -29,6 +31,12 @@ namespace Quasar::RendererBackend
         VkPipelineLayout m_pipelineLayout;
         VkPipeline m_graphicsPipeline;
         std::vector<VkFramebuffer> m_swapChainFramebuffers;
+        VkCommandPool commandPool;
+        VkCommandBuffer commandBuffer;
+
+        VkSemaphore m_imageAvailableSemaphore;
+        VkSemaphore m_renderFinishedSemaphore;
+        VkFence m_inFlightFence;
 
         u16 m_width, m_height;
 
@@ -43,5 +51,9 @@ namespace Quasar::RendererBackend
         void GraphicsPipelineCreate();
         void RenderPassCreate();
         void FramebuffersCreate();
+        void CommandPoolCreate();
+        void CommandBufferCreate();
+        void CommandBufferRecord(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+        void SyncObjectsCreate();
     };
 } // namespace Quasar

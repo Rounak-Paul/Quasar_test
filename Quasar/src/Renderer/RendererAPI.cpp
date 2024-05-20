@@ -28,4 +28,8 @@ namespace Quasar
     void RendererAPI::Shutdown() {
         m_backend->Shutdown();
     }
+
+    void RendererAPI::DrawFrame() {
+        m_backend->DrawFrame();
+    }
 } // namespace Quasar

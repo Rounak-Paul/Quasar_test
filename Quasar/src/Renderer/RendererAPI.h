@@ -18,6 +18,8 @@ namespace Quasar
         static b8 Init(String appName);
         void Shutdown();
 
+        void DrawFrame();
+
         private:
         static RendererAPI* s_instance;
         Scope<RendererBackend::Backend> m_backend;

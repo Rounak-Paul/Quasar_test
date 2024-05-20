@@ -25,20 +25,20 @@ then
 echo "Error:"$ERRORLEVEL && exit
 fi
 
-echo "Assets/shaders/Builtin.UIShader.vert.glsl -> Assets/shaders/Builtin.UIShader.vert.spv"
-$vulkanSDKPath/bin/glslc -fshader-stage=vert Assets/shaders/Builtin.UIShader.vert.glsl -o Assets/shaders/Builtin.UIShader.vert.spv
-ERRORLEVEL=$?
-if [ $ERRORLEVEL -ne 0 ]
-then
-echo "Error:"$ERRORLEVEL && exit
-fi
+# echo "Assets/shaders/Builtin.UIShader.vert.glsl -> Assets/shaders/Builtin.UIShader.vert.spv"
+# $vulkanSDKPath/bin/glslc -fshader-stage=vert Assets/shaders/Builtin.UIShader.vert.glsl -o Assets/shaders/Builtin.UIShader.vert.spv
+# ERRORLEVEL=$?
+# if [ $ERRORLEVEL -ne 0 ]
+# then
+# echo "Error:"$ERRORLEVEL && exit
+# fi
 
-echo "Assets/shaders/Builtin.UIShader.frag.glsl -> Assets/shaders/Builtin.UIShader.frag.spv"
-$vulkanSDKPath/bin/glslc -fshader-stage=frag Assets/shaders/Builtin.UIShader.frag.glsl -o Assets/shaders/Builtin.UIShader.frag.spv
-ERRORLEVEL=$?
-if [ $ERRORLEVEL -ne 0 ]
-then
-echo "Error:"$ERRORLEVEL && exit
-fi
+# echo "Assets/shaders/Builtin.UIShader.frag.glsl -> Assets/shaders/Builtin.UIShader.frag.spv"
+# $vulkanSDKPath/bin/glslc -fshader-stage=frag Assets/shaders/Builtin.UIShader.frag.glsl -o Assets/shaders/Builtin.UIShader.frag.spv
+# ERRORLEVEL=$?
+# if [ $ERRORLEVEL -ne 0 ]
+# then
+# echo "Error:"$ERRORLEVEL && exit
+# fi
 
 echo "Done."

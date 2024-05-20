@@ -4,6 +4,7 @@
 
 #include "VulkanDevice.h"
 #include "VulkanSwapchain.h"
+#include "VulkanShaderUtil.h"
 
 namespace Quasar::RendererBackend
 {
@@ -24,6 +25,10 @@ namespace Quasar::RendererBackend
         VkSurfaceKHR m_vkSurface;
         VulkanDevice* m_device = nullptr;
         VulkanSwapchain* m_swapchain = nullptr;
+        VkRenderPass m_renderPass;
+        VkPipelineLayout m_pipelineLayout;
+        VkPipeline m_graphicsPipeline;
+        std::vector<VkFramebuffer> m_swapChainFramebuffers;
 
         u16 m_width, m_height;
 
@@ -35,5 +40,8 @@ namespace Quasar::RendererBackend
             "VK_LAYER_KHRONOS_validation" 
             // ,"VK_LAYER_LUNARG_api_dump" // For all vulkan calls
         };
+        void GraphicsPipelineCreate();
+        void RenderPassCreate();
+        void FramebuffersCreate();
     };
 } // namespace Quasar

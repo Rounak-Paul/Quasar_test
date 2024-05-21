@@ -257,8 +257,8 @@ namespace Quasar::RendererBackend
 
     void Backend::GraphicsPipelineCreate() {
         Filesystem fs;
-        auto vertShaderCode = fs.ReadBinary("../../Assets/shaders/Builtin.MaterialShader.vert.spv");
-        auto fragShaderCode = fs.ReadBinary("../../Assets/shaders/Builtin.MaterialShader.frag.spv");
+        auto vertShaderCode = fs.ReadBinary("../Assets/shaders/Builtin.MaterialShader.vert.spv");
+        auto fragShaderCode = fs.ReadBinary("../Assets/shaders/Builtin.MaterialShader.frag.spv");
 
         VkShaderModule vertShaderModule = CreateShaderModule(m_device ,vertShaderCode);
         VkShaderModule fragShaderModule = CreateShaderModule(m_device, fragShaderCode);

@@ -10,8 +10,8 @@ typedef struct VulkanSwapchainSupportInfo {
 } VulkanSwapchainSupportInfo;
 
 typedef struct VulkanDevice {
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    VkDevice logicalDevice = VK_NULL_HANDLE;
+    VkPhysicalDevice physicalDevice;
+    VkDevice logicalDevice;
 
     VulkanSwapchainSupportInfo swapchainSupport;
     u32 graphicsQueueIndex;

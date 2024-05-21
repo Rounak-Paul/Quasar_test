@@ -23,9 +23,10 @@ namespace Quasar::RendererBackend
 
         private:
         VkInstance m_vkInstance;
-        VkAllocationCallbacks* m_allocator = nullptr;
         VkSurfaceKHR m_vkSurface;
+        VkAllocationCallbacks* allocator = nullptr;
         VulkanDevice* m_device = nullptr;
+        
         VulkanSwapchain* m_swapchain = nullptr;
         VkRenderPass m_renderPass;
         VkPipelineLayout m_pipelineLayout;

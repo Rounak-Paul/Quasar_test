@@ -48,7 +48,7 @@ namespace Quasar::RendererBackend
 
         // Instance creation
         QS_CORE_DEBUG("Creating Vulkan instance...");
-        VkResult result = vkCreateInstance(&createInfo, m_allocator, &m_vkInstance);
+        VkResult result = vkCreateInstance(&createInfo, allocator, &m_vkInstance);
         if (result != VK_SUCCESS) {
             QS_CORE_ERROR("Instance creation failed with VkResult: %d", result);
             return false;
@@ -57,17 +57,18 @@ namespace Quasar::RendererBackend
         // Surface creation
         QS_CORE_DEBUG("Creating Vulkan surface...");
         GLFWwindow* window = QS_MAIN_WINDOW.GetGLFWwindow();
-        result = glfwCreateWindowSurface(m_vkInstance, window, m_allocator, &m_vkSurface);
+        result = glfwCreateWindowSurface(m_vkInstance, window, allocator, &m_vkSurface);
         if (result != VK_SUCCESS) {
             QS_CORE_ERROR("Failed to create Window Surface, VkResult: %d", result);
-            vkDestroyInstance(m_vkInstance, m_allocator);
+            vkDestroyInstance(m_vkInstance, allocator);
             m_vkInstance = VK_NULL_HANDLE;
             return false;
         }
 
         // Device
         QS_CORE_INFO("Device Selection")
-        m_device = new VulkanDevice(m_vkInstance, m_vkSurface, m_allocator);
+        m_device = new VulkanDevice();
+        m_device->Create(m_vkInstance, m_vkSurface, allocator);
 
         // Swapchain
         QS_CORE_DEBUG("Creating Swapchain")
@@ -101,31 +102,31 @@ namespace Quasar::RendererBackend
     }
 
     void Backend::Shutdown() {
-        vkDeviceWaitIdle(m_device->m_logicalDevice);
-        vkDestroySemaphore(m_device->m_logicalDevice, m_renderFinishedSemaphore, nullptr);
-        vkDestroySemaphore(m_device->m_logicalDevice, m_imageAvailableSemaphore, nullptr);
-        vkDestroyFence(m_device->m_logicalDevice, m_inFlightFence, nullptr);
+        vkDeviceWaitIdle(m_device->logicalDevice);
+        vkDestroySemaphore(m_device->logicalDevice, m_renderFinishedSemaphore, nullptr);
+        vkDestroySemaphore(m_device->logicalDevice, m_imageAvailableSemaphore, nullptr);
+        vkDestroyFence(m_device->logicalDevice, m_inFlightFence, nullptr);
         if (commandPool != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Command Pool")
-            vkDestroyCommandPool(m_device->m_logicalDevice, commandPool, nullptr);
+            vkDestroyCommandPool(m_device->logicalDevice, commandPool, nullptr);
         }
         if (!m_swapChainFramebuffers.empty()) {
             QS_CORE_DEBUG("Destroying Frame Buffers");
             for (auto it : m_swapChainFramebuffers) {
-                vkDestroyFramebuffer(m_device->m_logicalDevice, it, nullptr);
+                vkDestroyFramebuffer(m_device->logicalDevice, it, nullptr);
             }
         }
         if (m_graphicsPipeline != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Graphics Pipeline");
-            vkDestroyPipeline(m_device->m_logicalDevice, m_graphicsPipeline, nullptr);
+            vkDestroyPipeline(m_device->logicalDevice, m_graphicsPipeline, nullptr);
         }
         if (m_pipelineLayout != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Pipeline Layout");
-            vkDestroyPipelineLayout(m_device->m_logicalDevice, m_pipelineLayout, nullptr);
+            vkDestroyPipelineLayout(m_device->logicalDevice, m_pipelineLayout, nullptr);
         }
         if (m_renderPass != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Render Pass");
-            vkDestroyRenderPass(m_device->m_logicalDevice, m_renderPass, nullptr);
+            vkDestroyRenderPass(m_device->logicalDevice, m_renderPass, nullptr);
         }
         if (m_swapchain != nullptr) {
             QS_CORE_DEBUG("Destroying Swapchain");
@@ -137,12 +138,12 @@ namespace Quasar::RendererBackend
         }
         if (m_vkSurface != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Vulkan surface");
-            vkDestroySurfaceKHR(m_vkInstance, m_vkSurface, m_allocator);
+            vkDestroySurfaceKHR(m_vkInstance, m_vkSurface, allocator);
             m_vkSurface = VK_NULL_HANDLE;
         }
         if (m_vkInstance != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Vulkan instance");
-            vkDestroyInstance(m_vkInstance, m_allocator);
+            vkDestroyInstance(m_vkInstance, allocator);
             m_vkInstance = VK_NULL_HANDLE;
         }
     }
@@ -249,15 +250,15 @@ namespace Quasar::RendererBackend
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
 
-        if (vkCreateRenderPass(m_device->m_logicalDevice, &renderPassInfo, nullptr, &m_renderPass) != VK_SUCCESS) {
+        if (vkCreateRenderPass(m_device->logicalDevice, &renderPassInfo, nullptr, &m_renderPass) != VK_SUCCESS) {
             QS_CORE_FATAL("failed to create render pass!");
         }
     }
 
     void Backend::GraphicsPipelineCreate() {
         Filesystem fs;
-        auto vertShaderCode = fs.ReadBinary("../Assets/shaders/Builtin.MaterialShader.vert.spv");
-        auto fragShaderCode = fs.ReadBinary("../Assets/shaders/Builtin.MaterialShader.frag.spv");
+        auto vertShaderCode = fs.ReadBinary("../../Assets/shaders/Builtin.MaterialShader.vert.spv");
+        auto fragShaderCode = fs.ReadBinary("../../Assets/shaders/Builtin.MaterialShader.frag.spv");
 
         VkShaderModule vertShaderModule = CreateShaderModule(m_device ,vertShaderCode);
         VkShaderModule fragShaderModule = CreateShaderModule(m_device, fragShaderCode);
@@ -335,7 +336,7 @@ namespace Quasar::RendererBackend
         pipelineLayoutInfo.setLayoutCount = 0;
         pipelineLayoutInfo.pushConstantRangeCount = 0;
 
-        if (vkCreatePipelineLayout(m_device->m_logicalDevice, &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
+        if (vkCreatePipelineLayout(m_device->logicalDevice, &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
             QS_CORE_FATAL("failed to create pipeline layout!");
         }
 
@@ -355,12 +356,12 @@ namespace Quasar::RendererBackend
         pipelineInfo.subpass = 0;
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-        if (vkCreateGraphicsPipelines(m_device->m_logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline) != VK_SUCCESS) {
+        if (vkCreateGraphicsPipelines(m_device->logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline) != VK_SUCCESS) {
             QS_CORE_FATAL("failed to create graphics pipeline!");
         }
 
-        vkDestroyShaderModule(m_device->m_logicalDevice, fragShaderModule, nullptr);
-        vkDestroyShaderModule(m_device->m_logicalDevice, vertShaderModule, nullptr);
+        vkDestroyShaderModule(m_device->logicalDevice, fragShaderModule, nullptr);
+        vkDestroyShaderModule(m_device->logicalDevice, vertShaderModule, nullptr);
     }
 
     void Backend::FramebuffersCreate() {
@@ -380,7 +381,7 @@ namespace Quasar::RendererBackend
             framebufferInfo.height = m_swapchain->m_swapChainExtent.height;
             framebufferInfo.layers = 1;
 
-            if (vkCreateFramebuffer(m_device->m_logicalDevice, &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]) != VK_SUCCESS) {
+            if (vkCreateFramebuffer(m_device->logicalDevice, &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]) != VK_SUCCESS) {
                 QS_CORE_FATAL("failed to create framebuffer!");
             }
         }
@@ -391,9 +392,9 @@ namespace Quasar::RendererBackend
         VkCommandPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        poolInfo.queueFamilyIndex = m_device->m_graphicsQueueIndex;
+        poolInfo.queueFamilyIndex = m_device->graphicsQueueIndex;
 
-        if (vkCreateCommandPool(m_device->m_logicalDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+        if (vkCreateCommandPool(m_device->logicalDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create command pool!");
         }
     }
@@ -405,7 +406,7 @@ namespace Quasar::RendererBackend
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         allocInfo.commandBufferCount = 1;
 
-        if (vkAllocateCommandBuffers(m_device->m_logicalDevice, &allocInfo, &commandBuffer) != VK_SUCCESS) {
+        if (vkAllocateCommandBuffers(m_device->logicalDevice, &allocInfo, &commandBuffer) != VK_SUCCESS) {
             throw std::runtime_error("failed to allocate command buffers!");
         }
     }
@@ -464,19 +465,19 @@ namespace Quasar::RendererBackend
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-        if (vkCreateSemaphore(m_device->m_logicalDevice, &semaphoreInfo, nullptr, &m_imageAvailableSemaphore) != VK_SUCCESS ||
-            vkCreateSemaphore(m_device->m_logicalDevice, &semaphoreInfo, nullptr, &m_renderFinishedSemaphore) != VK_SUCCESS ||
-            vkCreateFence(m_device->m_logicalDevice, &fenceInfo, nullptr, &m_inFlightFence) != VK_SUCCESS) {
+        if (vkCreateSemaphore(m_device->logicalDevice, &semaphoreInfo, nullptr, &m_imageAvailableSemaphore) != VK_SUCCESS ||
+            vkCreateSemaphore(m_device->logicalDevice, &semaphoreInfo, nullptr, &m_renderFinishedSemaphore) != VK_SUCCESS ||
+            vkCreateFence(m_device->logicalDevice, &fenceInfo, nullptr, &m_inFlightFence) != VK_SUCCESS) {
             throw std::runtime_error("failed to create synchronization objects for a frame!");
         }
     }
 
     void Backend::DrawFrame() {
-        vkWaitForFences(m_device->m_logicalDevice, 1, &m_inFlightFence, VK_TRUE, UINT64_MAX);
-        vkResetFences(m_device->m_logicalDevice, 1, &m_inFlightFence);
+        vkWaitForFences(m_device->logicalDevice, 1, &m_inFlightFence, VK_TRUE, UINT64_MAX);
+        vkResetFences(m_device->logicalDevice, 1, &m_inFlightFence);
 
         uint32_t imageIndex;
-        vkAcquireNextImageKHR(m_device->m_logicalDevice, m_swapchain->m_swapChain, UINT64_MAX, m_imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+        vkAcquireNextImageKHR(m_device->logicalDevice, m_swapchain->m_swapChain, UINT64_MAX, m_imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
         vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
         CommandBufferRecord(commandBuffer, imageIndex);
@@ -497,7 +498,7 @@ namespace Quasar::RendererBackend
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = signalSemaphores;
 
-        if (vkQueueSubmit(m_device->m_graphicsQueue, 1, &submitInfo, m_inFlightFence) != VK_SUCCESS) {
+        if (vkQueueSubmit(m_device->graphicsQueue, 1, &submitInfo, m_inFlightFence) != VK_SUCCESS) {
             throw std::runtime_error("failed to submit draw command buffer!");
         }
 
@@ -513,6 +514,6 @@ namespace Quasar::RendererBackend
 
         presentInfo.pImageIndices = &imageIndex;
 
-        vkQueuePresentKHR(m_device->m_presentQueue, &presentInfo);
+        vkQueuePresentKHR(m_device->presentQueue, &presentInfo);
     }
 } // namespace Quasar::RendererBackend

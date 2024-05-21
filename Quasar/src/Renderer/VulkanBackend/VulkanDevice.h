@@ -11,37 +11,43 @@ namespace Quasar::RendererBackend {
 
     class VulkanDevice {
         public:
-        VulkanDevice(const VkInstance& vkInstance, const VkSurfaceKHR& vkSurface, VkAllocationCallbacks* allocator);
+        VulkanDevice();
         ~VulkanDevice() = default;
 
         VulkanDevice(const VulkanDevice&) = delete;
 		VulkanDevice& operator=(const VulkanDevice&) = delete;
 
+        b8 Create(const VkInstance& vkInstance, const VkSurfaceKHR& vkSurface, VkAllocationCallbacks* vkAllocator);
         void Destroy();
         b8 DetectDepthFormat();
+        static void QuerySwapchainSupport(
+            VkPhysicalDevice activePhysicalDevice,
+            VkSurfaceKHR surface,
+            VulkanSwapchainSupportInfo* outSupportInfo
+        );
 
-        VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
-        VkDevice m_logicalDevice = VK_NULL_HANDLE;
-        VulkanSwapchainSupportInfo m_swapchainSupport;
-        u32 m_graphicsQueueIndex;
-        u32 m_presentQueueIndex;
-        u32 m_transferQueueIndex;
-        b8 m_supportsDeviceLocalHostVisible;
+        VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+        VkDevice logicalDevice = VK_NULL_HANDLE;
+        VulkanSwapchainSupportInfo swapchainSupport;
+        u32 graphicsQueueIndex;
+        u32 presentQueueIndex;
+        u32 transferQueueIndex;
+        b8 supportsDeviceLocalHostVisible;
 
-        VkQueue m_graphicsQueue;
-        VkQueue m_presentQueue;
-        VkQueue m_transferQueue;
+        VkQueue graphicsQueue;
+        VkQueue presentQueue;
+        VkQueue transferQueue;
 
-        VkCommandPool m_graphicsCommandPool;
+        VkCommandPool graphicsCommandPool;
 
-        VkPhysicalDeviceProperties m_properties;
-        VkPhysicalDeviceFeatures m_features;
-        VkPhysicalDeviceMemoryProperties m_memory;
+        VkPhysicalDeviceProperties properties;
+        VkPhysicalDeviceFeatures features;
+        VkPhysicalDeviceMemoryProperties memory;
 
-        VkFormat m_depthFormat;
+        VkFormat depthFormat;
 
         private:
-        VkAllocationCallbacks* m_allocator;
+        VkAllocationCallbacks* allocator;
 
         b8 SelectPhysicalDevice(const VkInstance& vkInstance, const VkSurfaceKHR& vkSurface, b8 discreteGPU);
     };

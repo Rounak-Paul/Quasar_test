@@ -8,14 +8,28 @@ namespace Quasar::RendererBackend
     VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
     VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 
-    VulkanSwapchain::VulkanSwapchain(const VulkanDevice* device, const VkSurfaceKHR& surface) {
-        VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(device->m_swapchainSupport.formats);
-        VkPresentModeKHR presentMode = ChooseSwapPresentMode(device->m_swapchainSupport.presentModes);
-        VkExtent2D extent = ChooseSwapExtent(device->m_swapchainSupport.capabilities);
+    // VulkanSwapchain __create(VulkanDevice* device, const VkSurfaceKHR& surface) {
+    //     VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(device->swapchainSupport.formats);
+    //     VkPresentModeKHR presentMode = ChooseSwapPresentMode(device->swapchainSupport.presentModes);
+    //     VkExtent2D extent = ChooseSwapExtent(device->swapchainSupport.capabilities);
 
-        uint32_t imageCount = device->m_swapchainSupport.capabilities.minImageCount + 1;
-        if (device->m_swapchainSupport.capabilities.maxImageCount > 0 && imageCount > device->m_swapchainSupport.capabilities.maxImageCount) {
-            imageCount = device->m_swapchainSupport.capabilities.maxImageCount;
+    //     VulkanDevice::QuerySwapchainSupport(
+    //         device->physicalDevice,
+    //         surface,
+    //         &device->swapchainSupport
+    //     );
+    //     VulkanSwapchain swapchain;
+    //     return swapchain;
+    // }
+
+    VulkanSwapchain::VulkanSwapchain(const VulkanDevice* device, const VkSurfaceKHR& surface) {
+        VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(device->swapchainSupport.formats);
+        VkPresentModeKHR presentMode = ChooseSwapPresentMode(device->swapchainSupport.presentModes);
+        VkExtent2D extent = ChooseSwapExtent(device->swapchainSupport.capabilities);
+
+        uint32_t imageCount = device->swapchainSupport.capabilities.minImageCount + 1;
+        if (device->swapchainSupport.capabilities.maxImageCount > 0 && imageCount > device->swapchainSupport.capabilities.maxImageCount) {
+            imageCount = device->swapchainSupport.capabilities.maxImageCount;
         }
 
         VkSwapchainCreateInfoKHR createInfo{};
@@ -29,9 +43,9 @@ namespace Quasar::RendererBackend
         createInfo.imageArrayLayers = 1;
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-        u32 queueFamilyIndices[] = {device->m_graphicsQueueIndex, device->m_presentQueueIndex};
+        u32 queueFamilyIndices[] = {device->graphicsQueueIndex, device->presentQueueIndex};
 
-        if (device->m_graphicsQueueIndex != device->m_presentQueueIndex) {
+        if (device->graphicsQueueIndex != device->presentQueueIndex) {
             createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
             createInfo.queueFamilyIndexCount = 2;
             createInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -39,20 +53,20 @@ namespace Quasar::RendererBackend
             createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         }
 
-        createInfo.preTransform = device->m_swapchainSupport.capabilities.currentTransform;
+        createInfo.preTransform = device->swapchainSupport.capabilities.currentTransform;
         createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
         createInfo.presentMode = presentMode;
         createInfo.clipped = VK_TRUE;
 
         createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-        if (vkCreateSwapchainKHR(device->m_logicalDevice, &createInfo, nullptr, &m_swapChain) != VK_SUCCESS) {
+        if (vkCreateSwapchainKHR(device->logicalDevice, &createInfo, nullptr, &m_swapChain) != VK_SUCCESS) {
             QS_CORE_FATAL("failed to create swap chain!");
         }
 
-        vkGetSwapchainImagesKHR(device->m_logicalDevice, m_swapChain, &imageCount, nullptr);
+        vkGetSwapchainImagesKHR(device->logicalDevice, m_swapChain, &imageCount, nullptr);
         m_swapChainImages.resize(imageCount);
-        vkGetSwapchainImagesKHR(device->m_logicalDevice, m_swapChain, &imageCount, m_swapChainImages.data());
+        vkGetSwapchainImagesKHR(device->logicalDevice, m_swapChain, &imageCount, m_swapChainImages.data());
 
         m_swapChainImageFormat = surfaceFormat.format;
         m_swapChainExtent = extent;
@@ -64,11 +78,11 @@ namespace Quasar::RendererBackend
     void VulkanSwapchain::Destroy(const VulkanDevice* device) {
         // TODO: move to VulkanImage
         for (auto imageView : m_swapChainImageViews) {
-            vkDestroyImageView(device->m_logicalDevice, imageView, nullptr);
+            vkDestroyImageView(device->logicalDevice, imageView, nullptr);
         }
 
         m_swapChainImages.clear();
-        vkDestroySwapchainKHR(device->m_logicalDevice, m_swapChain, nullptr);
+        vkDestroySwapchainKHR(device->logicalDevice, m_swapChain, nullptr);
     }
 
     // TODO: move to VulkanImage
@@ -91,7 +105,7 @@ namespace Quasar::RendererBackend
             createInfo.subresourceRange.baseArrayLayer = 0;
             createInfo.subresourceRange.layerCount = 1;
 
-            if (vkCreateImageView(device->m_logicalDevice, &createInfo, nullptr, &m_swapChainImageViews[i]) != VK_SUCCESS) {
+            if (vkCreateImageView(device->logicalDevice, &createInfo, nullptr, &m_swapChainImageViews[i]) != VK_SUCCESS) {
                 QS_CORE_FATAL("failed to create image views!");
             }
         }
@@ -103,7 +117,6 @@ namespace Quasar::RendererBackend
                 return availableFormat;
             }
         }
-
         return availableFormats[0];
     }
 

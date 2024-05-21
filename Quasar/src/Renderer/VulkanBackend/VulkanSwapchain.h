@@ -8,6 +8,7 @@ namespace Quasar::RendererBackend
 {
     class VulkanSwapchain {
         public:
+        VulkanSwapchain() {}
         VulkanSwapchain(const VulkanDevice* device, const VkSurfaceKHR& surface);
         ~VulkanSwapchain() = default;
 

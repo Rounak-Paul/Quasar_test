@@ -7,15 +7,15 @@ namespace Quasar::RendererBackend
     Backend::Backend() {}
 
     b8 Backend::Init(String appName, u16 w, u16 h) {
-        m_width = w;
-        m_height = h;
+        context = new VulkanContext();
+        context->width = w;
+        context->height = h;
 #ifdef QS_DEBUG 
         if (!CheckValidationLayerSupport()) {
             QS_CORE_ERROR("Validation layers requested, but not available!");
             return false;
         }
 #endif
-
         VkApplicationInfo appInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
         appInfo.pApplicationName = appName.c_str();
         appInfo.applicationVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);
@@ -48,7 +48,7 @@ namespace Quasar::RendererBackend
 
         // Instance creation
         QS_CORE_DEBUG("Creating Vulkan instance...");
-        VkResult result = vkCreateInstance(&createInfo, allocator, &m_vkInstance);
+        VkResult result = vkCreateInstance(&createInfo, context->allocator, &context->instance);
         if (result != VK_SUCCESS) {
             QS_CORE_ERROR("Instance creation failed with VkResult: %d", result);
             return false;
@@ -57,22 +57,27 @@ namespace Quasar::RendererBackend
         // Surface creation
         QS_CORE_DEBUG("Creating Vulkan surface...");
         GLFWwindow* window = QS_MAIN_WINDOW.GetGLFWwindow();
-        result = glfwCreateWindowSurface(m_vkInstance, window, allocator, &m_vkSurface);
+        result = glfwCreateWindowSurface(context->instance, window, context->allocator, &context->surface);
         if (result != VK_SUCCESS) {
             QS_CORE_ERROR("Failed to create Window Surface, VkResult: %d", result);
-            vkDestroyInstance(m_vkInstance, allocator);
-            m_vkInstance = VK_NULL_HANDLE;
+            vkDestroyInstance(context->instance, context->allocator);
+            context->instance = VK_NULL_HANDLE;
             return false;
         }
 
         // Device
         QS_CORE_INFO("Device Selection")
-        m_device = new VulkanDevice();
-        m_device->Create(m_vkInstance, m_vkSurface, allocator);
+        if (!VulkanDeviceCreate(context, &context->device)) {
+            QS_CORE_FATAL("Failed to create Device!")
+            return false;
+        }
 
         // Swapchain
         QS_CORE_DEBUG("Creating Swapchain")
-        m_swapchain = new VulkanSwapchain(m_device, m_vkSurface);
+        if (!VulkanSwapchainCreate(context, &context->swapchain)) {
+            QS_CORE_FATAL("Failed to create Swapchain!")
+            return false;
+        }
 
         // Render Pass
         QS_CORE_DEBUG("Creating Render Pass")
@@ -102,50 +107,55 @@ namespace Quasar::RendererBackend
     }
 
     void Backend::Shutdown() {
-        vkDeviceWaitIdle(m_device->logicalDevice);
-        vkDestroySemaphore(m_device->logicalDevice, m_renderFinishedSemaphore, nullptr);
-        vkDestroySemaphore(m_device->logicalDevice, m_imageAvailableSemaphore, nullptr);
-        vkDestroyFence(m_device->logicalDevice, m_inFlightFence, nullptr);
-        if (commandPool != VK_NULL_HANDLE) {
+        vkDeviceWaitIdle(context->device.logicalDevice);
+        
+        vkDestroySemaphore(context->device.logicalDevice, context->renderFinishedSemaphore, context->allocator);
+        vkDestroySemaphore(context->device.logicalDevice, context->imageAvailableSemaphore, context->allocator);
+        vkDestroyFence(context->device.logicalDevice, context->inFlightFence, context->allocator);
+        if (context->commandPool != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Command Pool")
-            vkDestroyCommandPool(m_device->logicalDevice, commandPool, nullptr);
+            vkDestroyCommandPool(context->device.logicalDevice, context->commandPool, context->allocator);
         }
-        if (!m_swapChainFramebuffers.empty()) {
+        if (!context->swapChainFramebuffers.empty()) {
             QS_CORE_DEBUG("Destroying Frame Buffers");
-            for (auto it : m_swapChainFramebuffers) {
-                vkDestroyFramebuffer(m_device->logicalDevice, it, nullptr);
+            for (auto it : context->swapChainFramebuffers) {
+                vkDestroyFramebuffer(context->device.logicalDevice, it, context->allocator);
             }
         }
-        if (m_graphicsPipeline != VK_NULL_HANDLE) {
+        if (context->graphicsPipeline != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Graphics Pipeline");
-            vkDestroyPipeline(m_device->logicalDevice, m_graphicsPipeline, nullptr);
+            vkDestroyPipeline(context->device.logicalDevice, context->graphicsPipeline, context->allocator);
         }
-        if (m_pipelineLayout != VK_NULL_HANDLE) {
+        if (context->pipelineLayout != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Pipeline Layout");
-            vkDestroyPipelineLayout(m_device->logicalDevice, m_pipelineLayout, nullptr);
+            vkDestroyPipelineLayout(context->device.logicalDevice, context->pipelineLayout, context->allocator);
         }
-        if (m_renderPass != VK_NULL_HANDLE) {
+        if (context->renderpass != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Render Pass");
-            vkDestroyRenderPass(m_device->logicalDevice, m_renderPass, nullptr);
+            vkDestroyRenderPass(context->device.logicalDevice, context->renderpass, context->allocator);
         }
-        if (m_swapchain != nullptr) {
+        if (context->swapchain.handle != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Swapchain");
-            m_swapchain->Destroy(m_device);
+            VulkanSwapchainDestroy(context, &context->swapchain);
         }
-        if (m_device != nullptr) {
-            QS_CORE_DEBUG("Destroying Vulkan device");
-            m_device->Destroy();
-        }
-        if (m_vkSurface != VK_NULL_HANDLE) {
+        QS_CORE_DEBUG("Destroying Vulkan device");
+        VulkanDeviceDestroy(context, &context->device);
+        
+        if (context->surface != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Vulkan surface");
-            vkDestroySurfaceKHR(m_vkInstance, m_vkSurface, allocator);
-            m_vkSurface = VK_NULL_HANDLE;
+            vkDestroySurfaceKHR(context->instance, context->surface, context->allocator);
+            context->surface = VK_NULL_HANDLE;
         }
-        if (m_vkInstance != VK_NULL_HANDLE) {
+        if (context->instance != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Vulkan instance");
-            vkDestroyInstance(m_vkInstance, allocator);
-            m_vkInstance = VK_NULL_HANDLE;
+            vkDestroyInstance(context->instance, context->allocator);
+            context->instance = VK_NULL_HANDLE;
         }
+    }
+
+    void Backend::Resize() {
+        VulkanSwapchainRecreate(context, &context->swapchain);
+        FramebuffersCreate();
     }
 
     b8 Backend::CheckValidationLayerSupport() {
@@ -225,7 +235,7 @@ namespace Quasar::RendererBackend
 
     void Backend::RenderPassCreate() {
         VkAttachmentDescription colorAttachment{};
-        colorAttachment.format = m_swapchain->m_swapChainImageFormat;
+        colorAttachment.format = context->swapchain.swapChainImageFormat;
         colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
         colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -250,7 +260,7 @@ namespace Quasar::RendererBackend
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
 
-        if (vkCreateRenderPass(m_device->logicalDevice, &renderPassInfo, nullptr, &m_renderPass) != VK_SUCCESS) {
+        if (vkCreateRenderPass(context->device.logicalDevice, &renderPassInfo, nullptr, &context->renderpass) != VK_SUCCESS) {
             QS_CORE_FATAL("failed to create render pass!");
         }
     }
@@ -260,8 +270,8 @@ namespace Quasar::RendererBackend
         auto vertShaderCode = fs.ReadBinary("../Assets/shaders/Builtin.MaterialShader.vert.spv");
         auto fragShaderCode = fs.ReadBinary("../Assets/shaders/Builtin.MaterialShader.frag.spv");
 
-        VkShaderModule vertShaderModule = CreateShaderModule(m_device ,vertShaderCode);
-        VkShaderModule fragShaderModule = CreateShaderModule(m_device, fragShaderCode);
+        VkShaderModule vertShaderModule = ShaderModuleCreate(&context->device ,vertShaderCode);
+        VkShaderModule fragShaderModule = ShaderModuleCreate(&context->device, fragShaderCode);
 
         VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
         vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -336,7 +346,7 @@ namespace Quasar::RendererBackend
         pipelineLayoutInfo.setLayoutCount = 0;
         pipelineLayoutInfo.pushConstantRangeCount = 0;
 
-        if (vkCreatePipelineLayout(m_device->logicalDevice, &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
+        if (vkCreatePipelineLayout(context->device.logicalDevice, &pipelineLayoutInfo, nullptr, &context->pipelineLayout) != VK_SUCCESS) {
             QS_CORE_FATAL("failed to create pipeline layout!");
         }
 
@@ -351,37 +361,37 @@ namespace Quasar::RendererBackend
         pipelineInfo.pMultisampleState = &multisampling;
         pipelineInfo.pColorBlendState = &colorBlending;
         pipelineInfo.pDynamicState = &dynamicState;
-        pipelineInfo.layout = m_pipelineLayout;
-        pipelineInfo.renderPass = m_renderPass;
+        pipelineInfo.layout = context->pipelineLayout;
+        pipelineInfo.renderPass = context->renderpass;
         pipelineInfo.subpass = 0;
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-        if (vkCreateGraphicsPipelines(m_device->logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline) != VK_SUCCESS) {
+        if (vkCreateGraphicsPipelines(context->device.logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &context->graphicsPipeline) != VK_SUCCESS) {
             QS_CORE_FATAL("failed to create graphics pipeline!");
         }
 
-        vkDestroyShaderModule(m_device->logicalDevice, fragShaderModule, nullptr);
-        vkDestroyShaderModule(m_device->logicalDevice, vertShaderModule, nullptr);
+        vkDestroyShaderModule(context->device.logicalDevice, fragShaderModule, nullptr);
+        vkDestroyShaderModule(context->device.logicalDevice, vertShaderModule, nullptr);
     }
 
     void Backend::FramebuffersCreate() {
-        m_swapChainFramebuffers.resize(m_swapchain->m_swapChainImageViews.size());
+        context->swapChainFramebuffers.resize(context->swapchain.swapChainImageViews.size());
 
-        for (size_t i = 0; i < m_swapchain->m_swapChainImageViews.size(); i++) {
+        for (size_t i = 0; i < context->swapchain.swapChainImageViews.size(); i++) {
             VkImageView attachments[] = {
-                m_swapchain->m_swapChainImageViews[i]
+                context->swapchain.swapChainImageViews[i]
             };
 
             VkFramebufferCreateInfo framebufferInfo{};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebufferInfo.renderPass = m_renderPass;
+            framebufferInfo.renderPass = context->renderpass;
             framebufferInfo.attachmentCount = 1;
             framebufferInfo.pAttachments = attachments;
-            framebufferInfo.width = m_swapchain->m_swapChainExtent.width;
-            framebufferInfo.height = m_swapchain->m_swapChainExtent.height;
+            framebufferInfo.width = context->swapchain.swapChainExtent.width;
+            framebufferInfo.height = context->swapchain.swapChainExtent.height;
             framebufferInfo.layers = 1;
 
-            if (vkCreateFramebuffer(m_device->logicalDevice, &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]) != VK_SUCCESS) {
+            if (vkCreateFramebuffer(context->device.logicalDevice, &framebufferInfo, nullptr, &context->swapChainFramebuffers[i]) != VK_SUCCESS) {
                 QS_CORE_FATAL("failed to create framebuffer!");
             }
         }
@@ -392,9 +402,9 @@ namespace Quasar::RendererBackend
         VkCommandPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        poolInfo.queueFamilyIndex = m_device->graphicsQueueIndex;
+        poolInfo.queueFamilyIndex = context->device.graphicsQueueIndex;
 
-        if (vkCreateCommandPool(m_device->logicalDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+        if (vkCreateCommandPool(context->device.logicalDevice, &poolInfo, context->allocator, &context->commandPool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create command pool!");
         }
     }
@@ -402,11 +412,11 @@ namespace Quasar::RendererBackend
     void Backend::CommandBufferCreate() {
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.commandPool = commandPool;
+        allocInfo.commandPool = context->commandPool;
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         allocInfo.commandBufferCount = 1;
 
-        if (vkAllocateCommandBuffers(m_device->logicalDevice, &allocInfo, &commandBuffer) != VK_SUCCESS) {
+        if (vkAllocateCommandBuffers(context->device.logicalDevice, &allocInfo, &context->commandBuffer) != VK_SUCCESS) {
             throw std::runtime_error("failed to allocate command buffers!");
         }
     }
@@ -421,10 +431,10 @@ namespace Quasar::RendererBackend
 
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = m_renderPass;
-        renderPassInfo.framebuffer = m_swapChainFramebuffers[imageIndex];
+        renderPassInfo.renderPass = context->renderpass;
+        renderPassInfo.framebuffer = context->swapChainFramebuffers[imageIndex];
         renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = m_swapchain->m_swapChainExtent;
+        renderPassInfo.renderArea.extent = context->swapchain.swapChainExtent;
 
         VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
         renderPassInfo.clearValueCount = 1;
@@ -432,20 +442,20 @@ namespace Quasar::RendererBackend
 
         vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->graphicsPipeline);
 
             VkViewport viewport{};
             viewport.x = 0.0f;
             viewport.y = 0.0f;
-            viewport.width = (float) m_swapchain->m_swapChainExtent.width;
-            viewport.height = (float) m_swapchain->m_swapChainExtent.height;
+            viewport.width = (float) context->swapchain.swapChainExtent.width;
+            viewport.height = (float) context->swapchain.swapChainExtent.height;
             viewport.minDepth = 0.0f;
             viewport.maxDepth = 1.0f;
             vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
             VkRect2D scissor{};
             scissor.offset = {0, 0};
-            scissor.extent = m_swapchain->m_swapChainExtent;
+            scissor.extent = context->swapchain.swapChainExtent;
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);            
 
             vkCmdDraw(commandBuffer, 3, 1, 0, 0);
@@ -465,40 +475,44 @@ namespace Quasar::RendererBackend
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-        if (vkCreateSemaphore(m_device->logicalDevice, &semaphoreInfo, nullptr, &m_imageAvailableSemaphore) != VK_SUCCESS ||
-            vkCreateSemaphore(m_device->logicalDevice, &semaphoreInfo, nullptr, &m_renderFinishedSemaphore) != VK_SUCCESS ||
-            vkCreateFence(m_device->logicalDevice, &fenceInfo, nullptr, &m_inFlightFence) != VK_SUCCESS) {
+        if (vkCreateSemaphore(context->device.logicalDevice, &semaphoreInfo, nullptr, &context->imageAvailableSemaphore) != VK_SUCCESS ||
+            vkCreateSemaphore(context->device.logicalDevice, &semaphoreInfo, nullptr, &context->renderFinishedSemaphore) != VK_SUCCESS ||
+            vkCreateFence(context->device.logicalDevice, &fenceInfo, nullptr, &context->inFlightFence) != VK_SUCCESS) {
             throw std::runtime_error("failed to create synchronization objects for a frame!");
         }
     }
 
     void Backend::DrawFrame() {
-        vkWaitForFences(m_device->logicalDevice, 1, &m_inFlightFence, VK_TRUE, UINT64_MAX);
-        vkResetFences(m_device->logicalDevice, 1, &m_inFlightFence);
+        if (context->recreatingSwapchain) {
+            return;
+        }
+
+        vkWaitForFences(context->device.logicalDevice, 1, &context->inFlightFence, VK_TRUE, UINT64_MAX);
+        vkResetFences(context->device.logicalDevice, 1, &context->inFlightFence);
 
         uint32_t imageIndex;
-        vkAcquireNextImageKHR(m_device->logicalDevice, m_swapchain->m_swapChain, UINT64_MAX, m_imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+        vkAcquireNextImageKHR(context->device.logicalDevice, context->swapchain.handle, UINT64_MAX, context->imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
-        vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
-        CommandBufferRecord(commandBuffer, imageIndex);
+        vkResetCommandBuffer(context->commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
+        CommandBufferRecord(context->commandBuffer, imageIndex);
 
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-        VkSemaphore waitSemaphores[] = {m_imageAvailableSemaphore};
+        VkSemaphore waitSemaphores[] = {context->imageAvailableSemaphore};
         VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
         submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitSemaphores = waitSemaphores;
         submitInfo.pWaitDstStageMask = waitStages;
 
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &commandBuffer;
+        submitInfo.pCommandBuffers = &context->commandBuffer;
 
-        VkSemaphore signalSemaphores[] = {m_renderFinishedSemaphore};
+        VkSemaphore signalSemaphores[] = {context->renderFinishedSemaphore};
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = signalSemaphores;
 
-        if (vkQueueSubmit(m_device->graphicsQueue, 1, &submitInfo, m_inFlightFence) != VK_SUCCESS) {
+        if (vkQueueSubmit(context->device.graphicsQueue, 1, &submitInfo, context->inFlightFence) != VK_SUCCESS) {
             throw std::runtime_error("failed to submit draw command buffer!");
         }
 
@@ -508,12 +522,12 @@ namespace Quasar::RendererBackend
         presentInfo.waitSemaphoreCount = 1;
         presentInfo.pWaitSemaphores = signalSemaphores;
 
-        VkSwapchainKHR swapChains[] = {m_swapchain->m_swapChain};
+        VkSwapchainKHR swapChains[] = {context->swapchain.handle};
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = swapChains;
 
         presentInfo.pImageIndices = &imageIndex;
 
-        vkQueuePresentKHR(m_device->presentQueue, &presentInfo);
+        vkQueuePresentKHR(context->device.presentQueue, &presentInfo);
     }
 } // namespace Quasar::RendererBackend

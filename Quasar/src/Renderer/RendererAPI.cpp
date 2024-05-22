@@ -32,4 +32,8 @@ namespace Quasar
     void RendererAPI::DrawFrame() {
         m_backend->DrawFrame();
     }
+    
+    void RendererAPI::Resize() {
+        m_backend->Resize();
+    }
 } // namespace Quasar

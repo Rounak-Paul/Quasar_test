@@ -33,21 +33,23 @@ typedef struct VulkanDevice {
 } VulkanDevice;
 
 typedef struct VulkanSwapchain {
-    VkSwapchainKHR m_swapChain;
-    std::vector<VkImage> m_swapChainImages;
-    VkFormat m_swapChainImageFormat;
-    VkExtent2D m_swapChainExtent;
-    std::vector<VkImageView> m_swapChainImageViews;
+    VkSwapchainKHR handle;
+    std::vector<VkImage> swapChainImages;
+    VkFormat swapChainImageFormat;
+    VkExtent2D swapChainExtent;
+    std::vector<VkImageView> swapChainImageViews;
 } VulkanSwapchain;
 
 typedef struct VulkanContext {
+    b8 recreatingSwapchain;
+
     VkInstance instance;
     VkSurfaceKHR surface;
     VkAllocationCallbacks* allocator;
-    VulkanDevice* device;
+    VulkanDevice device;
     
-    VulkanSwapchain* swapchain;
-    VkRenderPass renderPass;
+    VulkanSwapchain swapchain;
+    VkRenderPass renderpass;
 
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;

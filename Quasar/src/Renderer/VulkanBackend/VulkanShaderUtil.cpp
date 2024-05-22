@@ -2,7 +2,7 @@
 
 namespace Quasar::RendererBackend
 {
-    VkShaderModule CreateShaderModule(const VulkanDevice* device, const std::vector<char>& code) {
+    VkShaderModule ShaderModuleCreate(const VulkanDevice* device, const std::vector<char>& code) {
         VkShaderModuleCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         createInfo.codeSize = code.size();

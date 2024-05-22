@@ -1,6 +1,7 @@
 #pragma once
 
 #include <qspch.h>
+#include "VulkanTypes.inl"
 
 #include "VulkanDevice.h"
 #include "VulkanSwapchain.h"
@@ -20,26 +21,10 @@ namespace Quasar::RendererBackend
         void Shutdown();
 
         void DrawFrame();
+        void Resize();
 
         private:
-        VkInstance m_vkInstance;
-        VkSurfaceKHR m_vkSurface;
-        VkAllocationCallbacks* allocator = nullptr;
-        VulkanDevice* m_device = nullptr;
-        
-        VulkanSwapchain* m_swapchain = nullptr;
-        VkRenderPass m_renderPass;
-        VkPipelineLayout m_pipelineLayout;
-        VkPipeline m_graphicsPipeline;
-        std::vector<VkFramebuffer> m_swapChainFramebuffers;
-        VkCommandPool commandPool;
-        VkCommandBuffer commandBuffer;
-
-        VkSemaphore m_imageAvailableSemaphore;
-        VkSemaphore m_renderFinishedSemaphore;
-        VkFence m_inFlightFence;
-
-        u16 m_width, m_height;
+        VulkanContext* context = nullptr;
 
         private:
         std::vector<const char*> GetRequiredExtensions();

@@ -4,37 +4,46 @@
 
 namespace Quasar::RendererBackend
 {
-    VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
-    VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-    VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+    VkSurfaceFormatKHR __SwapSurfaceFormatChoose(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+    VkPresentModeKHR __SwapPresentModeChoose(const std::vector<VkPresentModeKHR>& availablePresentModes);
+    VkExtent2D __SwapExtentChoose(const VkSurfaceCapabilitiesKHR& capabilities);
+    void __ImageViewsCreate(VulkanContext* context, VulkanSwapchain* outSwapchain);
+    b8 __Create(VulkanContext* context, VulkanSwapchain* outSwapchain);
+    void __Destroy(VulkanContext* context, VulkanSwapchain* swapchain);
 
-    // VulkanSwapchain __create(VulkanDevice* device, const VkSurfaceKHR& surface) {
-    //     VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(device->swapchainSupport.formats);
-    //     VkPresentModeKHR presentMode = ChooseSwapPresentMode(device->swapchainSupport.presentModes);
-    //     VkExtent2D extent = ChooseSwapExtent(device->swapchainSupport.capabilities);
+    b8 VulkanSwapchainCreate(VulkanContext* context, VulkanSwapchain* outSwapchain) {
+        if (__Create(context, outSwapchain)) {
+            return true;
+        }
+        return false;
+    }
 
-    //     VulkanDevice::QuerySwapchainSupport(
-    //         device->physicalDevice,
-    //         surface,
-    //         &device->swapchainSupport
-    //     );
-    //     VulkanSwapchain swapchain;
-    //     return swapchain;
-    // }
+    void VulkanSwapchainDestroy(VulkanContext* context, VulkanSwapchain* swapchain) {
+        __Destroy(context, swapchain);
+    }
 
-    VulkanSwapchain::VulkanSwapchain(const VulkanDevice* device, const VkSurfaceKHR& surface) {
-        VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(device->swapchainSupport.formats);
-        VkPresentModeKHR presentMode = ChooseSwapPresentMode(device->swapchainSupport.presentModes);
-        VkExtent2D extent = ChooseSwapExtent(device->swapchainSupport.capabilities);
+    b8 VulkanSwapchainRecreate(VulkanContext* context, VulkanSwapchain* outSwapchain) {
+        vkDeviceWaitIdle(context->device.logicalDevice);
+        __Destroy(context, outSwapchain);
+        if (__Create(context, outSwapchain)) {
+            return true;
+        }
+        return false;
+    }
 
-        uint32_t imageCount = device->swapchainSupport.capabilities.minImageCount + 1;
-        if (device->swapchainSupport.capabilities.maxImageCount > 0 && imageCount > device->swapchainSupport.capabilities.maxImageCount) {
-            imageCount = device->swapchainSupport.capabilities.maxImageCount;
+    b8 __Create(VulkanContext* context, VulkanSwapchain* outSwapchain) {
+        VkSurfaceFormatKHR surfaceFormat = __SwapSurfaceFormatChoose(context->device.swapchainSupport.formats);
+        VkPresentModeKHR presentMode = __SwapPresentModeChoose(context->device.swapchainSupport.presentModes);
+        VkExtent2D extent = __SwapExtentChoose(context->device.swapchainSupport.capabilities);
+
+        uint32_t imageCount = context->device.swapchainSupport.capabilities.minImageCount + 1;
+        if (context->device.swapchainSupport.capabilities.maxImageCount > 0 && imageCount > context->device.swapchainSupport.capabilities.maxImageCount) {
+            imageCount = context->device.swapchainSupport.capabilities.maxImageCount;
         }
 
         VkSwapchainCreateInfoKHR createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-        createInfo.surface = surface;
+        createInfo.surface = context->surface;
 
         createInfo.minImageCount = imageCount;
         createInfo.imageFormat = surfaceFormat.format;
@@ -43,9 +52,9 @@ namespace Quasar::RendererBackend
         createInfo.imageArrayLayers = 1;
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-        u32 queueFamilyIndices[] = {device->graphicsQueueIndex, device->presentQueueIndex};
+        u32 queueFamilyIndices[] = {context->device.graphicsQueueIndex, context->device.presentQueueIndex};
 
-        if (device->graphicsQueueIndex != device->presentQueueIndex) {
+        if (context->device.graphicsQueueIndex != context->device.presentQueueIndex) {
             createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
             createInfo.queueFamilyIndexCount = 2;
             createInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -53,48 +62,50 @@ namespace Quasar::RendererBackend
             createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         }
 
-        createInfo.preTransform = device->swapchainSupport.capabilities.currentTransform;
+        createInfo.preTransform = context->device.swapchainSupport.capabilities.currentTransform;
         createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
         createInfo.presentMode = presentMode;
         createInfo.clipped = VK_TRUE;
 
         createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-        if (vkCreateSwapchainKHR(device->logicalDevice, &createInfo, nullptr, &m_swapChain) != VK_SUCCESS) {
+        if (vkCreateSwapchainKHR(context->device.logicalDevice, &createInfo, nullptr, &outSwapchain->handle) != VK_SUCCESS) {
             QS_CORE_FATAL("failed to create swap chain!");
+            return false;
         }
 
-        vkGetSwapchainImagesKHR(device->logicalDevice, m_swapChain, &imageCount, nullptr);
-        m_swapChainImages.resize(imageCount);
-        vkGetSwapchainImagesKHR(device->logicalDevice, m_swapChain, &imageCount, m_swapChainImages.data());
+        vkGetSwapchainImagesKHR(context->device.logicalDevice, outSwapchain->handle, &imageCount, nullptr);
+        outSwapchain->swapChainImages.resize(imageCount);
+        vkGetSwapchainImagesKHR(context->device.logicalDevice, outSwapchain->handle, &imageCount, outSwapchain->swapChainImages.data());
 
-        m_swapChainImageFormat = surfaceFormat.format;
-        m_swapChainExtent = extent;
+        outSwapchain->swapChainImageFormat = surfaceFormat.format;
+        outSwapchain->swapChainExtent = extent;
 
         // TODO: move to VulkanImage
-        CreateImageViews(device);
+        __ImageViewsCreate(context, outSwapchain);
+        return true;
     }
 
-    void VulkanSwapchain::Destroy(const VulkanDevice* device) {
+    void __Destroy(VulkanContext* context, VulkanSwapchain* swapchain) {
         // TODO: move to VulkanImage
-        for (auto imageView : m_swapChainImageViews) {
-            vkDestroyImageView(device->logicalDevice, imageView, nullptr);
+        for (auto it : swapchain->swapChainImageViews) {
+            vkDestroyImageView(context->device.logicalDevice, it, nullptr);
         }
 
-        m_swapChainImages.clear();
-        vkDestroySwapchainKHR(device->logicalDevice, m_swapChain, nullptr);
+        swapchain->swapChainImages.clear();
+        vkDestroySwapchainKHR(context->device.logicalDevice, swapchain->handle, nullptr);
     }
 
     // TODO: move to VulkanImage
-    void VulkanSwapchain::CreateImageViews(const VulkanDevice* device) {
-        m_swapChainImageViews.resize(m_swapChainImages.size());
+    void __ImageViewsCreate(VulkanContext* context, VulkanSwapchain* outSwapchain) {
+        outSwapchain->swapChainImageViews.resize(outSwapchain->swapChainImages.size());
 
-        for (size_t i = 0; i < m_swapChainImages.size(); i++) {
+        for (size_t i = 0; i < outSwapchain->swapChainImages.size(); i++) {
             VkImageViewCreateInfo createInfo{};
             createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            createInfo.image = m_swapChainImages[i];
+            createInfo.image = outSwapchain->swapChainImages[i];
             createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            createInfo.format = m_swapChainImageFormat;
+            createInfo.format = outSwapchain->swapChainImageFormat;
             createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
             createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
             createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -105,13 +116,13 @@ namespace Quasar::RendererBackend
             createInfo.subresourceRange.baseArrayLayer = 0;
             createInfo.subresourceRange.layerCount = 1;
 
-            if (vkCreateImageView(device->logicalDevice, &createInfo, nullptr, &m_swapChainImageViews[i]) != VK_SUCCESS) {
+            if (vkCreateImageView(context->device.logicalDevice, &createInfo, nullptr, &outSwapchain->swapChainImageViews[i]) != VK_SUCCESS) {
                 QS_CORE_FATAL("failed to create image views!");
             }
         }
     }
 
-    VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
+    VkSurfaceFormatKHR __SwapSurfaceFormatChoose(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
         for (const auto& availableFormat : availableFormats) {
             if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
                 return availableFormat;
@@ -120,7 +131,7 @@ namespace Quasar::RendererBackend
         return availableFormats[0];
     }
 
-    VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
+    VkPresentModeKHR __SwapPresentModeChoose(const std::vector<VkPresentModeKHR>& availablePresentModes) {
         // VK_PRESENT_MODE_IMMEDIATE_KHR = 0,
         // VK_PRESENT_MODE_MAILBOX_KHR = 1,
         // VK_PRESENT_MODE_FIFO_KHR = 2,
@@ -133,7 +144,7 @@ namespace Quasar::RendererBackend
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 
-    VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
+    VkExtent2D __SwapExtentChoose(const VkSurfaceCapabilitiesKHR& capabilities) {
         if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
             return capabilities.currentExtent;
         } else {
@@ -145,8 +156,8 @@ namespace Quasar::RendererBackend
                 static_cast<uint32_t>(height)
             };
 
-            actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-            actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+            actualExtent.width = QS_CLAMP(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+            actualExtent.height = QS_CLAMP(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
 
             return actualExtent;
         }

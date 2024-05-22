@@ -6,5 +6,5 @@
 
 namespace Quasar::RendererBackend
 {
-    VkShaderModule CreateShaderModule(const VulkanDevice* device, const std::vector<char>& code);
+    VkShaderModule ShaderModuleCreate(const VulkanDevice* device, const std::vector<char>& code);
 } // namespace Quasar::RendererBackend

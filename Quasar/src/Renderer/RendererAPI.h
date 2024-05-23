@@ -19,6 +19,7 @@ namespace Quasar
         void Shutdown();
 
         void DrawFrame();
+        void Resize();
 
         private:
         static RendererAPI* s_instance;

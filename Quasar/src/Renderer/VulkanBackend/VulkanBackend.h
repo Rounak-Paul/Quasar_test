@@ -1,6 +1,7 @@
 #pragma once
 
 #include <qspch.h>
+#include "VulkanTypes.inl"
 
 #include "VulkanDevice.h"
 #include "VulkanSwapchain.h"
@@ -20,26 +21,18 @@ namespace Quasar::RendererBackend
         void Shutdown();
 
         void DrawFrame();
+        void Resize();
+
+        b8 framebufferResized = false;
+
+        const std::vector<Vertex> vertices = {
+            {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+            {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+            {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+        };
 
         private:
-        VkInstance m_vkInstance;
-        VkSurfaceKHR m_vkSurface;
-        VkAllocationCallbacks* allocator = nullptr;
-        VulkanDevice* m_device = nullptr;
-        
-        VulkanSwapchain* m_swapchain = nullptr;
-        VkRenderPass m_renderPass;
-        VkPipelineLayout m_pipelineLayout;
-        VkPipeline m_graphicsPipeline;
-        std::vector<VkFramebuffer> m_swapChainFramebuffers;
-        VkCommandPool commandPool;
-        VkCommandBuffer commandBuffer;
-
-        VkSemaphore m_imageAvailableSemaphore;
-        VkSemaphore m_renderFinishedSemaphore;
-        VkFence m_inFlightFence;
-
-        u16 m_width, m_height;
+        VulkanContext* context = nullptr;
 
         private:
         std::vector<const char*> GetRequiredExtensions();
@@ -53,8 +46,10 @@ namespace Quasar::RendererBackend
         void RenderPassCreate();
         void FramebuffersCreate();
         void CommandPoolCreate();
+        void VertexBufferCreate();
         void CommandBufferCreate();
         void CommandBufferRecord(VkCommandBuffer commandBuffer, uint32_t imageIndex);
         void SyncObjectsCreate();
+        u32 FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
     };
 } // namespace Quasar

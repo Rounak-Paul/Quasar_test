@@ -25,7 +25,7 @@ typedef struct VulkanPhysicalDeviceQueueFamilyInfo {
     u32 transferFamilyIndex;
 } VulkanPhysicalDeviceQueueFamilyInfo;
 
-b8 PhysicalDeviceMeetsRequirements(
+b8 __PhysicalDeviceMeetsRequirements(
     VkPhysicalDevice device,
     VkSurfaceKHR surface,
     const VkPhysicalDeviceProperties* properties,
@@ -34,46 +34,43 @@ b8 PhysicalDeviceMeetsRequirements(
     VulkanPhysicalDeviceQueueFamilyInfo* outQueueFamilyInfo,
     VulkanSwapchainSupportInfo* outSwapchainSupport);
 
-VulkanDevice::VulkanDevice() {
+b8 __PhysicalDeviceSelect(VulkanContext* context, b8 discreteGPU, VulkanDevice* outDevice);
 
-}
-
-b8 VulkanDevice::Create(const VkInstance& vkInstance, const VkSurfaceKHR& vkSurface, VkAllocationCallbacks* vkAllocator) {
-    allocator = vkAllocator;
-    if (!SelectPhysicalDevice(vkInstance, vkSurface, true)) {
+b8 VulkanDeviceCreate(VulkanContext* context, VulkanDevice* outDevice) {
+    if (!__PhysicalDeviceSelect(context, true, outDevice)) {
         QS_CORE_WARN("No Discrete GPU with Vulkan support found. Defaulting to Integrated GPU.")
-        if (!SelectPhysicalDevice(vkInstance, vkSurface, false)) {
+        if (!__PhysicalDeviceSelect(context, false, outDevice)) {
             QS_CORE_FATAL("No Device with Vulkan support found")
             return false;
         }
     }
 
     // NOTE: Do not create additional queues for shared indices.
-    b8 presentSharesGraphicsQueue = graphicsQueueIndex == presentQueueIndex;
-    b8 transferSharesGraphicsQueue = graphicsQueueIndex == transferQueueIndex;
-    b8 presentSharesTransferQueue = presentQueueIndex == transferQueueIndex;
+    b8 presentSharesGraphicsQueue = outDevice->graphicsQueueIndex == outDevice->presentQueueIndex;
+    b8 transferSharesGraphicsQueue = outDevice->graphicsQueueIndex == outDevice->transferQueueIndex;
+    b8 presentSharesTransferQueue = outDevice->presentQueueIndex == outDevice->transferQueueIndex;
     
     std::vector<u32> indices;
-    indices.push_back(graphicsQueueIndex);
+    indices.push_back(outDevice->graphicsQueueIndex);
 
-    if (!presentSharesGraphicsQueue && std::find(indices.begin(), indices.end(), presentQueueIndex) == indices.end()) {
-        indices.push_back(presentQueueIndex);
+    if (!presentSharesGraphicsQueue && std::find(indices.begin(), indices.end(), outDevice->presentQueueIndex) == indices.end()) {
+        indices.push_back(outDevice->presentQueueIndex);
     }
 
-    if (!transferSharesGraphicsQueue && std::find(indices.begin(), indices.end(), transferQueueIndex) == indices.end()) {
-        indices.push_back(transferQueueIndex);
+    if (!transferSharesGraphicsQueue && std::find(indices.begin(), indices.end(), outDevice->transferQueueIndex) == indices.end()) {
+        indices.push_back(outDevice->transferQueueIndex);
     }
 
-    if (!presentSharesTransferQueue && std::find(indices.begin(), indices.end(), transferQueueIndex) == indices.end()) {
-        indices.push_back(transferQueueIndex);
+    if (!presentSharesTransferQueue && std::find(indices.begin(), indices.end(), outDevice->transferQueueIndex) == indices.end()) {
+        indices.push_back(outDevice->transferQueueIndex);
     }
 
     u32 indexCount = indices.size();
 
     VkQueueFamilyProperties props[32];
     u32 propCount;
-    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &propCount, 0);
-    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &propCount, props);
+    vkGetPhysicalDeviceQueueFamilyProperties(outDevice->physicalDevice, &propCount, 0);
+    vkGetPhysicalDeviceQueueFamilyProperties(outDevice->physicalDevice, &propCount, props);
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos(indexCount);
     for (u32 i = 0; i < indexCount; ++i) {
@@ -114,105 +111,105 @@ b8 VulkanDevice::Create(const VkInstance& vkInstance, const VkSurfaceKHR& vkSurf
 
     // Create the 
     VK_CHECK(vkCreateDevice(
-        physicalDevice,
+        outDevice->physicalDevice,
         &device_create_info,
-        allocator,
-        &logicalDevice));
+        context->allocator,
+        &outDevice->logicalDevice));
 
     QS_CORE_INFO("Logical device created.");
 
     // Get queues.
     vkGetDeviceQueue(
-        logicalDevice,
-        graphicsQueueIndex,
+        outDevice->logicalDevice,
+        outDevice->graphicsQueueIndex,
         0,
-        &graphicsQueue);
+        &outDevice->graphicsQueue);
 
     vkGetDeviceQueue(
-        logicalDevice,
-        presentQueueIndex,
+        outDevice->logicalDevice,
+        outDevice->presentQueueIndex,
         0,
-        &presentQueue);
+        &outDevice->presentQueue);
 
     vkGetDeviceQueue(
-        logicalDevice,
-        transferQueueIndex,
+        outDevice->logicalDevice,
+        outDevice->transferQueueIndex,
         0,
-        &transferQueue);
+        &outDevice->transferQueue);
     QS_CORE_DEBUG("Queues obtained.");
 
     // Create command pool for graphics queue.
     VkCommandPoolCreateInfo poolCreateInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
-    poolCreateInfo.queueFamilyIndex = graphicsQueueIndex;
+    poolCreateInfo.queueFamilyIndex = outDevice->graphicsQueueIndex;
     poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     VK_CHECK(vkCreateCommandPool(
-        logicalDevice,
+        outDevice->logicalDevice,
         &poolCreateInfo,
-        allocator,
-        &graphicsCommandPool));
+        context->allocator,
+        &outDevice->graphicsCommandPool));
     QS_CORE_DEBUG("Graphics command pool created.");
 
     return true;
 }
 
-void VulkanDevice::Destroy() {
+void VulkanDeviceDestroy(VulkanContext* context, VulkanDevice* device) {
     // Unset queues
-    graphicsQueue = 0;
-    presentQueue = 0;
-    transferQueue = 0;
+    device->graphicsQueue = 0;
+    device->presentQueue = 0;
+    device->transferQueue = 0;
 
     QS_CORE_DEBUG("Destroying command pools...");
     vkDestroyCommandPool(
-        logicalDevice,
-        graphicsCommandPool,
-        allocator);
+        device->logicalDevice,
+        device->graphicsCommandPool,
+        context->allocator);
 
     // Destroy logical device
     QS_CORE_DEBUG("Destroying logical device");
-    if (logicalDevice) {
-        vkDestroyDevice(logicalDevice, allocator);
-        logicalDevice = 0;
+    if (device->logicalDevice) {
+        vkDestroyDevice(device->logicalDevice, context->allocator);
+        device->logicalDevice = 0;
     }
 
     // Physical devices are not destroyed.
     QS_CORE_DEBUG("Releasing physical device resources...");
-    physicalDevice = 0;
+    device->physicalDevice = 0;
 
-    if (!swapchainSupport.formats.empty()) {
-        swapchainSupport.formats.clear();
+    if (!device->swapchainSupport.formats.empty()) {
+        device->swapchainSupport.formats.clear();
     }
 
-    if (!swapchainSupport.presentModes.empty()) {
-        swapchainSupport.presentModes.clear();
+    if (!device->swapchainSupport.presentModes.empty()) {
+        device->swapchainSupport.presentModes.clear();
     }
 
-    swapchainSupport.capabilities = {};
+    device->swapchainSupport.capabilities = {};
 
-    graphicsQueueIndex = -1;
-    presentQueueIndex = -1;
-    transferQueueIndex = -1;
+    device->graphicsQueueIndex = -1;
+    device->presentQueueIndex = -1;
+    device->transferQueueIndex = -1;
 }
 
-b8 VulkanDevice::SelectPhysicalDevice(const VkInstance& vkInstance, const VkSurfaceKHR& vkSurface, b8 discreteGPU) {
-    uint32_t physical_device_count = 0;
-    VK_CHECK(vkEnumeratePhysicalDevices(vkInstance, &physical_device_count, nullptr));
-    if (physical_device_count == 0) {
+b8 __PhysicalDeviceSelect(VulkanContext* context, b8 discreteGPU, VulkanDevice* outDevice) {
+    uint32_t physicalDeviceCount = 0;
+    VK_CHECK(vkEnumeratePhysicalDevices(context->instance, &physicalDeviceCount, nullptr));
+    if (physicalDeviceCount == 0) {
         QS_CORE_FATAL("No devices which support Vulkan were found.");
         return false;
     }
 
-    std::vector<VkPhysicalDevice> physical_devices(physical_device_count);
-    physical_devices.resize(physical_device_count);
-    VK_CHECK(vkEnumeratePhysicalDevices(vkInstance, &physical_device_count, physical_devices.data()));
-    for (u32 i = 0; i < physical_device_count; ++i) {
+    std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
+    physicalDevices.resize(physicalDeviceCount);
+    VK_CHECK(vkEnumeratePhysicalDevices(context->instance, &physicalDeviceCount, physicalDevices.data()));
+    for (u32 i = 0; i < physicalDeviceCount; ++i) {
         VkPhysicalDeviceProperties properties;
-        vkGetPhysicalDeviceProperties(physical_devices[i], &properties);
+        vkGetPhysicalDeviceProperties(physicalDevices[i], &properties);
 
         VkPhysicalDeviceFeatures features;
-        vkGetPhysicalDeviceFeatures(physical_devices[i], &features);
+        vkGetPhysicalDeviceFeatures(physicalDevices[i], &features);
 
         VkPhysicalDeviceMemoryProperties memory;
-        vkGetPhysicalDeviceMemoryProperties(physical_devices[i], &memory);
+        vkGetPhysicalDeviceMemoryProperties(physicalDevices[i], &memory);
 
         // Check if device supports local/host visible combo
         b8 supportsDeviceLocalHostVisible = false;
@@ -244,14 +241,14 @@ b8 VulkanDevice::SelectPhysicalDevice(const VkInstance& vkInstance, const VkSurf
 #endif
 
         VulkanPhysicalDeviceQueueFamilyInfo queueInfo = {};
-        b8 result = PhysicalDeviceMeetsRequirements(
-            physical_devices[i],
-            vkSurface,
+        b8 result = __PhysicalDeviceMeetsRequirements(
+            physicalDevices[i],
+            context->surface,
             &properties,
             &features,
             &requirements,
             &queueInfo,
-            &swapchainSupport);
+            &outDevice->swapchainSupport);
 
         if (result) {
             QS_CORE_DEBUG("Selected device: '%s'.", properties.deviceName);
@@ -298,10 +295,10 @@ b8 VulkanDevice::SelectPhysicalDevice(const VkInstance& vkInstance, const VkSurf
                 }
             }
 
-            physicalDevice = physical_devices[i];
-            graphicsQueueIndex = queueInfo.graphicsFamilyIndex;
-            presentQueueIndex = queueInfo.presentFamilyIndex;
-            transferQueueIndex = queueInfo.transferFamilyIndex;
+            outDevice->physicalDevice = physicalDevices[i];
+            outDevice->graphicsQueueIndex = queueInfo.graphicsFamilyIndex;
+            outDevice->presentQueueIndex = queueInfo.presentFamilyIndex;
+            outDevice->transferQueueIndex = queueInfo.transferFamilyIndex;
             // NOTE: set compute index here if needed.
 
             // Keep a copy of properties, features and memory info for later use.
@@ -314,16 +311,16 @@ b8 VulkanDevice::SelectPhysicalDevice(const VkInstance& vkInstance, const VkSurf
     }
 
     // Ensure a device was selected
-    if (!physicalDevice) {
+    if (!outDevice->physicalDevice) {
         return false;
     }
 
-    physical_devices.clear();
+    physicalDevices.clear();
     QS_CORE_DEBUG("Physical device selected.");
     return true;
 }
 
-b8 PhysicalDeviceMeetsRequirements(
+b8 __PhysicalDeviceMeetsRequirements(
     VkPhysicalDevice device,
     VkSurfaceKHR surface,
     const VkPhysicalDeviceProperties* properties,
@@ -429,7 +426,7 @@ b8 PhysicalDeviceMeetsRequirements(
         QS_CORE_DEBUG("Compute Family Index:  %i", outQueueFamilyInfo->computeFamilyIndex);
 
         // Query swapchain support.
-        VulkanDevice::QuerySwapchainSupport(
+        VulkanDeviceQuerySwapchainSupport(
             device,
             surface,
             outSwapchainSupport);
@@ -492,20 +489,20 @@ b8 PhysicalDeviceMeetsRequirements(
     return false;
 }
 
-void VulkanDevice::QuerySwapchainSupport(
-    VkPhysicalDevice activePhysicalDevice,
+void VulkanDeviceQuerySwapchainSupport(
+    VkPhysicalDevice physicalDevice, 
     VkSurfaceKHR surface,
     VulkanSwapchainSupportInfo* outSupportInfo) {
     // Surface capabilities
     VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-        activePhysicalDevice,
+        physicalDevice,
         surface,
         &outSupportInfo->capabilities));
 
     // Surface formats
     u32 formatCount;
     VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(
-        activePhysicalDevice,
+        physicalDevice,
         surface,
         &formatCount,
         nullptr));
@@ -516,7 +513,7 @@ void VulkanDevice::QuerySwapchainSupport(
         }
         outSupportInfo->formats.resize(formatCount);
         VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(
-            activePhysicalDevice,
+            physicalDevice,
             surface,
             &formatCount,
             outSupportInfo->formats.data()));
@@ -525,7 +522,7 @@ void VulkanDevice::QuerySwapchainSupport(
     // Present modes
     u32 presentModeCount;
     VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(
-        activePhysicalDevice,
+        physicalDevice,
         surface,
         &presentModeCount,
         nullptr));
@@ -535,14 +532,14 @@ void VulkanDevice::QuerySwapchainSupport(
             outSupportInfo->presentModes.resize(presentModeCount);
         }
         VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(
-            activePhysicalDevice,
+            physicalDevice,
             surface,
             &presentModeCount,
             outSupportInfo->presentModes.data()));
     }
 }
 
-b8 VulkanDevice::DetectDepthFormat() {
+b8 VulkanDeviceDetectDepthFormat(VulkanDevice* device) {
     // Format candidates
     const u64 candidate_count = 3;
     VkFormat candidates[3] = {
@@ -553,17 +550,16 @@ b8 VulkanDevice::DetectDepthFormat() {
     u32 flags = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
     for (u64 i = 0; i < candidate_count; ++i) {
         VkFormatProperties properties;
-        vkGetPhysicalDeviceFormatProperties(physicalDevice, candidates[i], &properties);
+        vkGetPhysicalDeviceFormatProperties(device->physicalDevice, candidates[i], &properties);
 
         if ((properties.linearTilingFeatures & flags) == flags) {
-            depthFormat = candidates[i];
+            device->depthFormat = candidates[i];
             return true;
         } else if ((properties.optimalTilingFeatures & flags) == flags) {
-            depthFormat = candidates[i];
+            device->depthFormat = candidates[i];
             return true;
         }
     }
-
     return false;
 }
 

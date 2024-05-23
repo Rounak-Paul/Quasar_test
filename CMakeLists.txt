@@ -9,8 +9,8 @@ endif()
 
 project(QuasarEngine)
 
-# set(CMAKE_CXX_FLAGS_RELEASE "")
-# set(CMAKE_C_FLAGS_RELEASE "")
+set(CMAKE_CXX_FLAGS_RELEASE "")
+set(CMAKE_C_FLAGS_RELEASE "")
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DQS_DEBUG")
 

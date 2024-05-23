@@ -23,7 +23,6 @@ namespace Quasar::RendererBackend
     }
 
     b8 VulkanSwapchainRecreate(VulkanContext* context, VulkanSwapchain* outSwapchain) {
-        vkDeviceWaitIdle(context->device.logicalDevice);
         __Destroy(context, outSwapchain);
         if (__Create(context, outSwapchain)) {
             return true;

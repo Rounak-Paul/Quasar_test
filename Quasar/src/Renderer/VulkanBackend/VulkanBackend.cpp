@@ -95,6 +95,9 @@ namespace Quasar::RendererBackend
         QS_CORE_DEBUG("Creating Command Pool")
         CommandPoolCreate();
 
+        QS_CORE_DEBUG("Creating Vertex Buffer")
+        VertexBufferCreate();
+
         // Frame Buffers
         QS_CORE_DEBUG("Creating Command Buffer")
         CommandBufferCreate();
@@ -109,9 +112,11 @@ namespace Quasar::RendererBackend
     void Backend::Shutdown() {
         vkDeviceWaitIdle(context->device.logicalDevice);
         
-        vkDestroySemaphore(context->device.logicalDevice, context->renderFinishedSemaphore, context->allocator);
-        vkDestroySemaphore(context->device.logicalDevice, context->imageAvailableSemaphore, context->allocator);
-        vkDestroyFence(context->device.logicalDevice, context->inFlightFence, context->allocator);
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            vkDestroySemaphore(context->device.logicalDevice, context->renderFinishedSemaphores[i], nullptr);
+            vkDestroySemaphore(context->device.logicalDevice, context->imageAvailableSemaphores[i], nullptr);
+            vkDestroyFence(context->device.logicalDevice, context->inFlightFences[i], nullptr);
+        }
         if (context->commandPool != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Command Pool")
             vkDestroyCommandPool(context->device.logicalDevice, context->commandPool, context->allocator);
@@ -134,6 +139,8 @@ namespace Quasar::RendererBackend
             QS_CORE_DEBUG("Destroying Render Pass");
             vkDestroyRenderPass(context->device.logicalDevice, context->renderpass, context->allocator);
         }
+        vkDestroyBuffer(context->device.logicalDevice, context->vertexBuffer, nullptr);
+        vkFreeMemory(context->device.logicalDevice, context->vertexBufferMemory, nullptr);
         if (context->swapchain.handle != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Swapchain");
             VulkanSwapchainDestroy(context, &context->swapchain);
@@ -154,6 +161,17 @@ namespace Quasar::RendererBackend
     }
 
     void Backend::Resize() {
+        QS_CORE_TRACE("Backend resizing...")
+        // Requery support
+        VulkanDeviceQuerySwapchainSupport(
+            context->device.physicalDevice,
+            context->surface,
+            &context->device.swapchainSupport);
+        VulkanDeviceDetectDepthFormat(&context->device);
+        vkDeviceWaitIdle(context->device.logicalDevice);
+        for (size_t i = 0; i < context->swapChainFramebuffers.size(); i++) {
+            vkDestroyFramebuffer(context->device.logicalDevice, context->swapChainFramebuffers[i], nullptr);
+        }
         VulkanSwapchainRecreate(context, &context->swapchain);
         FramebuffersCreate();
     }
@@ -289,8 +307,14 @@ namespace Quasar::RendererBackend
 
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexBindingDescriptionCount = 0;
-        vertexInputInfo.vertexAttributeDescriptionCount = 0;
+
+        auto bindingDescription = Vertex::getBindingDescription();
+        auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
+        vertexInputInfo.vertexBindingDescriptionCount = 1;
+        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -409,16 +433,63 @@ namespace Quasar::RendererBackend
         }
     }
 
+    u32 Backend::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+        VkPhysicalDeviceMemoryProperties memProperties;
+        vkGetPhysicalDeviceMemoryProperties(context->device.physicalDevice, &memProperties);
+
+        for (u32 i = 0; i < memProperties.memoryTypeCount; i++) {
+            if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+                return i;
+            }
+        }
+
+        throw std::runtime_error("failed to find suitable memory type!");
+    }
+
+    void Backend::VertexBufferCreate() {
+        VkBufferCreateInfo bufferInfo{};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+        bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        if (vkCreateBuffer(context->device.logicalDevice, &bufferInfo, nullptr, &context->vertexBuffer) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create vertex buffer!");
+        }
+
+        VkMemoryRequirements memRequirements;
+        vkGetBufferMemoryRequirements(context->device.logicalDevice, context->vertexBuffer, &memRequirements);
+
+        VkMemoryAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memRequirements.size;
+        allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        if (vkAllocateMemory(context->device.logicalDevice, &allocInfo, nullptr, &context->vertexBufferMemory) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate vertex buffer memory!");
+        }
+
+        vkBindBufferMemory(context->device.logicalDevice, context->vertexBuffer, context->vertexBufferMemory, 0);
+
+        void* data;
+        vkMapMemory(context->device.logicalDevice, context->vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+            memcpy(data, vertices.data(), (size_t) bufferInfo.size);
+        vkUnmapMemory(context->device.logicalDevice, context->vertexBufferMemory);
+    }
+
     void Backend::CommandBufferCreate() {
+        context->commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         allocInfo.commandPool = context->commandPool;
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocInfo.commandBufferCount = 1;
+        allocInfo.commandBufferCount = (uint32_t) context->commandBuffers.size();
 
-        if (vkAllocateCommandBuffers(context->device.logicalDevice, &allocInfo, &context->commandBuffer) != VK_SUCCESS) {
+        if (vkAllocateCommandBuffers(context->device.logicalDevice, &allocInfo, context->commandBuffers.data()) != VK_SUCCESS) {
             throw std::runtime_error("failed to allocate command buffers!");
         }
+
     }
 
     void Backend::CommandBufferRecord(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
@@ -458,7 +529,11 @@ namespace Quasar::RendererBackend
             scissor.extent = context->swapchain.swapChainExtent;
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);            
 
-            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+            VkBuffer vertexBuffers[] = {context->vertexBuffer};
+            VkDeviceSize offsets[] = {0};
+            vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+            vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 
         vkCmdEndRenderPass(commandBuffer);
 
@@ -468,6 +543,10 @@ namespace Quasar::RendererBackend
     }
 
     void Backend::SyncObjectsCreate() {
+        context->imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+        context->renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+        context->inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+
         VkSemaphoreCreateInfo semaphoreInfo{};
         semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
@@ -475,44 +554,50 @@ namespace Quasar::RendererBackend
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-        if (vkCreateSemaphore(context->device.logicalDevice, &semaphoreInfo, nullptr, &context->imageAvailableSemaphore) != VK_SUCCESS ||
-            vkCreateSemaphore(context->device.logicalDevice, &semaphoreInfo, nullptr, &context->renderFinishedSemaphore) != VK_SUCCESS ||
-            vkCreateFence(context->device.logicalDevice, &fenceInfo, nullptr, &context->inFlightFence) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create synchronization objects for a frame!");
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            if (vkCreateSemaphore(context->device.logicalDevice, &semaphoreInfo, nullptr, &context->imageAvailableSemaphores[i]) != VK_SUCCESS ||
+                vkCreateSemaphore(context->device.logicalDevice, &semaphoreInfo, nullptr, &context->renderFinishedSemaphores[i]) != VK_SUCCESS ||
+                vkCreateFence(context->device.logicalDevice, &fenceInfo, nullptr, &context->inFlightFences[i]) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create synchronization objects for a frame!");
+            }
         }
     }
 
     void Backend::DrawFrame() {
-        if (context->recreatingSwapchain) {
-            return;
-        }
-
-        vkWaitForFences(context->device.logicalDevice, 1, &context->inFlightFence, VK_TRUE, UINT64_MAX);
-        vkResetFences(context->device.logicalDevice, 1, &context->inFlightFence);
+        vkWaitForFences(context->device.logicalDevice, 1, &context->inFlightFences[context->frameIndex], VK_TRUE, UINT64_MAX);
 
         uint32_t imageIndex;
-        vkAcquireNextImageKHR(context->device.logicalDevice, context->swapchain.handle, UINT64_MAX, context->imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+        VkResult result = vkAcquireNextImageKHR(context->device.logicalDevice, context->swapchain.handle, UINT64_MAX, context->imageAvailableSemaphores[context->frameIndex], VK_NULL_HANDLE, &imageIndex);
 
-        vkResetCommandBuffer(context->commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
-        CommandBufferRecord(context->commandBuffer, imageIndex);
+        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+            Resize();
+            return;
+        } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+            throw std::runtime_error("failed to acquire swap chain image!");
+        }
+
+        vkResetFences(context->device.logicalDevice, 1, &context->inFlightFences[context->frameIndex]);
+
+        vkResetCommandBuffer(context->commandBuffers[context->frameIndex], /*VkCommandBufferResetFlagBits*/ 0);
+        CommandBufferRecord(context->commandBuffers[context->frameIndex], imageIndex);
 
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-        VkSemaphore waitSemaphores[] = {context->imageAvailableSemaphore};
+        VkSemaphore waitSemaphores[] = {context->imageAvailableSemaphores[context->frameIndex]};
         VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
         submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitSemaphores = waitSemaphores;
         submitInfo.pWaitDstStageMask = waitStages;
 
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &context->commandBuffer;
+        submitInfo.pCommandBuffers = &context->commandBuffers[context->frameIndex];
 
-        VkSemaphore signalSemaphores[] = {context->renderFinishedSemaphore};
+        VkSemaphore signalSemaphores[] = {context->renderFinishedSemaphores[context->frameIndex]};
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = signalSemaphores;
 
-        if (vkQueueSubmit(context->device.graphicsQueue, 1, &submitInfo, context->inFlightFence) != VK_SUCCESS) {
+        if (vkQueueSubmit(context->device.graphicsQueue, 1, &submitInfo, context->inFlightFences[context->frameIndex]) != VK_SUCCESS) {
             throw std::runtime_error("failed to submit draw command buffer!");
         }
 
@@ -528,6 +613,15 @@ namespace Quasar::RendererBackend
 
         presentInfo.pImageIndices = &imageIndex;
 
-        vkQueuePresentKHR(context->device.presentQueue, &presentInfo);
+        result = vkQueuePresentKHR(context->device.presentQueue, &presentInfo);
+
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
+            framebufferResized = false;
+            Resize();
+        } else if (result != VK_SUCCESS) {
+            throw std::runtime_error("failed to present swap chain image!");
+        }
+
+        context->frameIndex = (context->frameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
     }
 } // namespace Quasar::RendererBackend

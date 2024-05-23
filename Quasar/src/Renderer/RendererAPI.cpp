@@ -34,6 +34,6 @@ namespace Quasar
     }
     
     void RendererAPI::Resize() {
-        m_backend->Resize();
+        m_backend->framebufferResized = true;
     }
 } // namespace Quasar

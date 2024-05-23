@@ -23,6 +23,14 @@ namespace Quasar::RendererBackend
         void DrawFrame();
         void Resize();
 
+        b8 framebufferResized = false;
+
+        const std::vector<Vertex> vertices = {
+            {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+            {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+            {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+        };
+
         private:
         VulkanContext* context = nullptr;
 
@@ -38,8 +46,10 @@ namespace Quasar::RendererBackend
         void RenderPassCreate();
         void FramebuffersCreate();
         void CommandPoolCreate();
+        void VertexBufferCreate();
         void CommandBufferCreate();
         void CommandBufferRecord(VkCommandBuffer commandBuffer, uint32_t imageIndex);
         void SyncObjectsCreate();
+        u32 FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
     };
 } // namespace Quasar

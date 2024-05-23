@@ -433,47 +433,13 @@ namespace Quasar::RendererBackend
         }
     }
 
-    u32 Backend::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
-        VkPhysicalDeviceMemoryProperties memProperties;
-        vkGetPhysicalDeviceMemoryProperties(context->device.physicalDevice, &memProperties);
-
-        for (u32 i = 0; i < memProperties.memoryTypeCount; i++) {
-            if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-                return i;
-            }
-        }
-
-        throw std::runtime_error("failed to find suitable memory type!");
-    }
-
     void Backend::VertexBufferCreate() {
-        VkBufferCreateInfo bufferInfo{};
-        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bufferInfo.size = sizeof(vertices[0]) * vertices.size();
-        bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        if (vkCreateBuffer(context->device.logicalDevice, &bufferInfo, nullptr, &context->vertexBuffer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create vertex buffer!");
-        }
-
-        VkMemoryRequirements memRequirements;
-        vkGetBufferMemoryRequirements(context->device.logicalDevice, context->vertexBuffer, &memRequirements);
-
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memRequirements.size;
-        allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-        if (vkAllocateMemory(context->device.logicalDevice, &allocInfo, nullptr, &context->vertexBufferMemory) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate vertex buffer memory!");
-        }
-
-        vkBindBufferMemory(context->device.logicalDevice, context->vertexBuffer, context->vertexBufferMemory, 0);
+        VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+        VulkanBufferCreate(context, bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, context->vertexBuffer, context->vertexBufferMemory);
 
         void* data;
-        vkMapMemory(context->device.logicalDevice, context->vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-            memcpy(data, vertices.data(), (size_t) bufferInfo.size);
+        vkMapMemory(context->device.logicalDevice, context->vertexBufferMemory, 0, bufferSize, 0, &data);
+            memcpy(data, vertices.data(), (size_t) bufferSize);
         vkUnmapMemory(context->device.logicalDevice, context->vertexBufferMemory);
     }
 

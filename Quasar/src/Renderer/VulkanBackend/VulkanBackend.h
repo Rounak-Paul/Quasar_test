@@ -6,6 +6,7 @@
 #include "VulkanDevice.h"
 #include "VulkanSwapchain.h"
 #include "VulkanShaderUtil.h"
+#include "VulkanBuffer.h"
 
 namespace Quasar::RendererBackend
 {
@@ -50,6 +51,5 @@ namespace Quasar::RendererBackend
         void CommandBufferCreate();
         void CommandBufferRecord(VkCommandBuffer commandBuffer, uint32_t imageIndex);
         void SyncObjectsCreate();
-        u32 FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
     };
 } // namespace Quasar

@@ -113,6 +113,7 @@ typedef struct VulkanContext {
     std::vector<VkDescriptorSet> descriptorSets;
 
     u16 width, height, frameIndex;
+    f32 dt;
 } VulkanContext;
 
 }

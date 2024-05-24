@@ -21,7 +21,7 @@ namespace Quasar::RendererBackend
         b8 Init(String appName, u16 w, u16 h);
         void Shutdown();
 
-        void DrawFrame();
+        void DrawFrame(f32 dt);
         void Resize();
 
         b8 framebufferResized = false;

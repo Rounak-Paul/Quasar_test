@@ -17,6 +17,7 @@
 #include <list>
 #include <algorithm>
 #include <string>
+#include <array>
 #pragma warning(pop)
 
 // Vendor

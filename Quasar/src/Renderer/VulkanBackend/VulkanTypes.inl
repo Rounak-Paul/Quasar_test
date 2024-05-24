@@ -95,6 +95,8 @@ typedef struct VulkanContext {
 
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
+    VkBuffer indexBuffer;
+    VkDeviceMemory indexBufferMemory;
 
     u16 width, height, frameIndex;
 } VulkanContext;

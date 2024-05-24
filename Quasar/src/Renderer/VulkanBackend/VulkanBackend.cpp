@@ -98,6 +98,9 @@ namespace Quasar::RendererBackend
         QS_CORE_DEBUG("Creating Vertex Buffer")
         VertexBufferCreate();
 
+        QS_CORE_DEBUG("Creating Index Buffer")
+        IndexBufferCreate();
+
         // Frame Buffers
         QS_CORE_DEBUG("Creating Command Buffer")
         CommandBufferCreate();
@@ -139,8 +142,13 @@ namespace Quasar::RendererBackend
             QS_CORE_DEBUG("Destroying Render Pass");
             vkDestroyRenderPass(context->device.logicalDevice, context->renderpass, context->allocator);
         }
+
+        vkDestroyBuffer(context->device.logicalDevice, context->indexBuffer, nullptr);
+        vkFreeMemory(context->device.logicalDevice, context->indexBufferMemory, nullptr);
+
         vkDestroyBuffer(context->device.logicalDevice, context->vertexBuffer, nullptr);
         vkFreeMemory(context->device.logicalDevice, context->vertexBufferMemory, nullptr);
+
         if (context->swapchain.handle != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Swapchain");
             VulkanSwapchainDestroy(context, &context->swapchain);
@@ -285,8 +293,13 @@ namespace Quasar::RendererBackend
 
     void Backend::GraphicsPipelineCreate() {
         Filesystem fs;
+#ifdef QS_PLATFORM_WINDOWS
+        auto vertShaderCode = fs.ReadBinary("../../Assets/shaders/Builtin.MaterialShader.vert.spv");
+        auto fragShaderCode = fs.ReadBinary("../../Assets/shaders/Builtin.MaterialShader.frag.spv");
+#else
         auto vertShaderCode = fs.ReadBinary("../Assets/shaders/Builtin.MaterialShader.vert.spv");
         auto fragShaderCode = fs.ReadBinary("../Assets/shaders/Builtin.MaterialShader.frag.spv");
+#endif
 
         VkShaderModule vertShaderModule = ShaderModuleCreate(&context->device ,vertShaderCode);
         VkShaderModule fragShaderModule = ShaderModuleCreate(&context->device, fragShaderCode);
@@ -433,48 +446,44 @@ namespace Quasar::RendererBackend
         }
     }
 
-    u32 Backend::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
-        VkPhysicalDeviceMemoryProperties memProperties;
-        vkGetPhysicalDeviceMemoryProperties(context->device.physicalDevice, &memProperties);
-
-        for (u32 i = 0; i < memProperties.memoryTypeCount; i++) {
-            if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-                return i;
-            }
-        }
-
-        throw std::runtime_error("failed to find suitable memory type!");
-    }
-
     void Backend::VertexBufferCreate() {
-        VkBufferCreateInfo bufferInfo{};
-        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bufferInfo.size = sizeof(vertices[0]) * vertices.size();
-        bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
-        if (vkCreateBuffer(context->device.logicalDevice, &bufferInfo, nullptr, &context->vertexBuffer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create vertex buffer!");
-        }
-
-        VkMemoryRequirements memRequirements;
-        vkGetBufferMemoryRequirements(context->device.logicalDevice, context->vertexBuffer, &memRequirements);
-
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memRequirements.size;
-        allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-        if (vkAllocateMemory(context->device.logicalDevice, &allocInfo, nullptr, &context->vertexBufferMemory) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate vertex buffer memory!");
-        }
-
-        vkBindBufferMemory(context->device.logicalDevice, context->vertexBuffer, context->vertexBufferMemory, 0);
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        VulkanBufferCreate(context, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
         void* data;
-        vkMapMemory(context->device.logicalDevice, context->vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-            memcpy(data, vertices.data(), (size_t) bufferInfo.size);
-        vkUnmapMemory(context->device.logicalDevice, context->vertexBufferMemory);
+        vkMapMemory(context->device.logicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+            memcpy(data, vertices.data(), (size_t) bufferSize);
+        vkUnmapMemory(context->device.logicalDevice, stagingBufferMemory);
+
+        VulkanBufferCreate(context, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, context->vertexBuffer, context->vertexBufferMemory);
+
+        VulkanBufferCopy(context, stagingBuffer, context->vertexBuffer, bufferSize);
+
+        vkDestroyBuffer(context->device.logicalDevice, stagingBuffer, nullptr);
+        vkFreeMemory(context->device.logicalDevice, stagingBufferMemory, nullptr);
+    }
+
+    void Backend::IndexBufferCreate() {
+        VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        VulkanBufferCreate(context, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+        void* data;
+        vkMapMemory(context->device.logicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+            memcpy(data, indices.data(), (size_t) bufferSize);
+        vkUnmapMemory(context->device.logicalDevice, stagingBufferMemory);
+
+        VulkanBufferCreate(context, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, context->indexBuffer, context->indexBufferMemory);
+
+        VulkanBufferCopy(context, stagingBuffer, context->indexBuffer, bufferSize);
+
+        vkDestroyBuffer(context->device.logicalDevice, stagingBuffer, nullptr);
+        vkFreeMemory(context->device.logicalDevice, stagingBufferMemory, nullptr);
     }
 
     void Backend::CommandBufferCreate() {
@@ -533,7 +542,10 @@ namespace Quasar::RendererBackend
             VkDeviceSize offsets[] = {0};
             vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-            vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+            vkCmdBindIndexBuffer(commandBuffer, context->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+            // vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
         vkCmdEndRenderPass(commandBuffer);
 

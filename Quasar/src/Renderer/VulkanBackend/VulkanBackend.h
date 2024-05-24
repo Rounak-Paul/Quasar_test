@@ -48,14 +48,20 @@ namespace Quasar::RendererBackend
             "VK_LAYER_KHRONOS_validation" 
             // ,"VK_LAYER_LUNARG_api_dump" // For all vulkan calls
         };
+
+        void DescriptorSetLayoutCreate();
         void GraphicsPipelineCreate();
         void RenderPassCreate();
         void FramebuffersCreate();
         void CommandPoolCreate();
         void VertexBufferCreate();
         void IndexBufferCreate();
+        void UniformBuffersCreate();
+        void DescriptorPoolCreate();
+        void DescriptorSetsCreate();
         void CommandBufferCreate();
         void CommandBufferRecord(VkCommandBuffer commandBuffer, uint32_t imageIndex);
         void SyncObjectsCreate();
+        void UniformBufferUpdate(u16 frameIndex);
     };
 } // namespace Quasar

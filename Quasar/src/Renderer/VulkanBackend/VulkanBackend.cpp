@@ -129,8 +129,6 @@ namespace Quasar::RendererBackend
         vkDeviceWaitIdle(context->device.logicalDevice);
 
         vkDestroyDescriptorPool(context->device.logicalDevice, context->descriptorPool, nullptr);
-
-        vkDestroyDescriptorSetLayout(context->device.logicalDevice, context->descriptorSetLayout, nullptr);
         
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             vkDestroySemaphore(context->device.logicalDevice, context->renderFinishedSemaphores[i], nullptr);
@@ -423,8 +421,8 @@ namespace Quasar::RendererBackend
 
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = 0;
-        pipelineLayoutInfo.pushConstantRangeCount = 0;
+        pipelineLayoutInfo.setLayoutCount = 1;
+        pipelineLayoutInfo.pSetLayouts = &context->descriptorSetLayout;
 
         if (vkCreatePipelineLayout(context->device.logicalDevice, &pipelineLayoutInfo, nullptr, &context->pipelineLayout) != VK_SUCCESS) {
             QS_CORE_FATAL("failed to create pipeline layout!");

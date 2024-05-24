@@ -27,9 +27,14 @@ namespace Quasar::RendererBackend
         b8 framebufferResized = false;
 
         const std::vector<Vertex> vertices = {
-            {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-            {{0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
-            {{-0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}}
+            {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+            {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+            {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+            {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+        };
+
+        const std::vector<uint16_t> indices = {
+            0, 1, 2, 2, 3, 0
         };
 
         private:
@@ -48,6 +53,7 @@ namespace Quasar::RendererBackend
         void FramebuffersCreate();
         void CommandPoolCreate();
         void VertexBufferCreate();
+        void IndexBufferCreate();
         void CommandBufferCreate();
         void CommandBufferRecord(VkCommandBuffer commandBuffer, uint32_t imageIndex);
         void SyncObjectsCreate();

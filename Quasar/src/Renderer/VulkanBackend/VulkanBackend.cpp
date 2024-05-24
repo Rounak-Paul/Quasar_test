@@ -98,6 +98,9 @@ namespace Quasar::RendererBackend
         QS_CORE_DEBUG("Creating Vertex Buffer")
         VertexBufferCreate();
 
+        QS_CORE_DEBUG("Creating Index Buffer")
+        IndexBufferCreate();
+
         // Frame Buffers
         QS_CORE_DEBUG("Creating Command Buffer")
         CommandBufferCreate();
@@ -139,8 +142,13 @@ namespace Quasar::RendererBackend
             QS_CORE_DEBUG("Destroying Render Pass");
             vkDestroyRenderPass(context->device.logicalDevice, context->renderpass, context->allocator);
         }
+
+        vkDestroyBuffer(context->device.logicalDevice, context->indexBuffer, nullptr);
+        vkFreeMemory(context->device.logicalDevice, context->indexBufferMemory, nullptr);
+
         vkDestroyBuffer(context->device.logicalDevice, context->vertexBuffer, nullptr);
         vkFreeMemory(context->device.logicalDevice, context->vertexBufferMemory, nullptr);
+
         if (context->swapchain.handle != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Swapchain");
             VulkanSwapchainDestroy(context, &context->swapchain);
@@ -458,6 +466,26 @@ namespace Quasar::RendererBackend
         vkFreeMemory(context->device.logicalDevice, stagingBufferMemory, nullptr);
     }
 
+    void Backend::IndexBufferCreate() {
+        VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        VulkanBufferCreate(context, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+        void* data;
+        vkMapMemory(context->device.logicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+            memcpy(data, indices.data(), (size_t) bufferSize);
+        vkUnmapMemory(context->device.logicalDevice, stagingBufferMemory);
+
+        VulkanBufferCreate(context, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, context->indexBuffer, context->indexBufferMemory);
+
+        VulkanBufferCopy(context, stagingBuffer, context->indexBuffer, bufferSize);
+
+        vkDestroyBuffer(context->device.logicalDevice, stagingBuffer, nullptr);
+        vkFreeMemory(context->device.logicalDevice, stagingBufferMemory, nullptr);
+    }
+
     void Backend::CommandBufferCreate() {
         context->commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 
@@ -514,7 +542,10 @@ namespace Quasar::RendererBackend
             VkDeviceSize offsets[] = {0};
             vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-            vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+            vkCmdBindIndexBuffer(commandBuffer, context->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+            // vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+            vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
         vkCmdEndRenderPass(commandBuffer);
 

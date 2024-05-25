@@ -136,7 +136,7 @@ namespace Quasar::RendererBackend
         // VK_PRESENT_MODE_FIFO_KHR = 2,
         // VK_PRESENT_MODE_FIFO_RELAXED_KHR = 3,
         for (const auto& availablePresentMode : availablePresentModes) {
-            if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+            if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
                 return availablePresentMode;
             }
         }

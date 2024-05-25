@@ -2,6 +2,7 @@
 
 #include <qspch.h>
 #include "VulkanTypes.inl"
+#include "VulkanCommandBuffer.h"
 
 namespace Quasar::RendererBackend {
     void VulkanBufferCreate(VulkanContext* context, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);

@@ -30,12 +30,15 @@ namespace Quasar::RendererBackend
             {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
             {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
             {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-            {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+            {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}},
         };
 
         const std::vector<u16> indices = {
             0, 1, 2, 2, 3, 0
         };
+
+        VkImage textureImage;
+        VkDeviceMemory textureImageMemory;
 
         private:
         VulkanContext* context = nullptr;
@@ -54,6 +57,7 @@ namespace Quasar::RendererBackend
         void RenderPassCreate();
         void FramebuffersCreate();
         void CommandPoolCreate();
+        void TextureImageCreate();
         void VertexBufferCreate();
         void IndexBufferCreate();
         void UniformBuffersCreate();
@@ -63,5 +67,9 @@ namespace Quasar::RendererBackend
         void CommandBufferRecord(VkCommandBuffer commandBuffer, uint32_t imageIndex);
         void SyncObjectsCreate();
         void UniformBufferUpdate(u16 frameIndex);
+
+        void ImageCreate(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+        void ImageLayoutTransition(VulkanContext* context, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+        void CopyBufferToImage(VulkanContext* context, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
     };
 } // namespace Quasar

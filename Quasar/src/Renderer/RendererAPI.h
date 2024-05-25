@@ -18,7 +18,7 @@ namespace Quasar
         static b8 Init(String appName);
         void Shutdown();
 
-        void DrawFrame();
+        void DrawFrame(f32 dt);
         void Resize();
 
         private:

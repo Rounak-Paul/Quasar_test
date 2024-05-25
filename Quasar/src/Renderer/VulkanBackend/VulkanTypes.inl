@@ -5,6 +5,12 @@ namespace Quasar::RendererBackend {
 
 #define MAX_FRAMES_IN_FLIGHT 2
 
+struct UniformBufferObject {
+    alignas(16) glm::mat4 model;
+    alignas(16) glm::mat4 view;
+    alignas(16) glm::mat4 proj;
+};
+
 struct Vertex {
     glm::vec2 pos;
     glm::vec3 color;
@@ -83,6 +89,7 @@ typedef struct VulkanContext {
     VulkanSwapchain swapchain;
     VkRenderPass renderpass;
 
+    VkDescriptorSetLayout descriptorSetLayout;
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
     std::vector<VkFramebuffer> swapChainFramebuffers;
@@ -98,7 +105,15 @@ typedef struct VulkanContext {
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
 
+    std::vector<VkBuffer> uniformBuffers;
+    std::vector<VkDeviceMemory> uniformBuffersMemory;
+    std::vector<void*> uniformBuffersMapped;
+
+    VkDescriptorPool descriptorPool;
+    std::vector<VkDescriptorSet> descriptorSets;
+
     u16 width, height, frameIndex;
+    f32 dt;
 } VulkanContext;
 
 }

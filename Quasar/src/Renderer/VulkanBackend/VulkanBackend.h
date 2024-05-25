@@ -21,7 +21,7 @@ namespace Quasar::RendererBackend
         b8 Init(String appName, u16 w, u16 h);
         void Shutdown();
 
-        void DrawFrame();
+        void DrawFrame(f32 dt);
         void Resize();
 
         b8 framebufferResized = false;
@@ -33,7 +33,7 @@ namespace Quasar::RendererBackend
             {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
         };
 
-        const std::vector<uint16_t> indices = {
+        const std::vector<u16> indices = {
             0, 1, 2, 2, 3, 0
         };
 
@@ -48,14 +48,20 @@ namespace Quasar::RendererBackend
             "VK_LAYER_KHRONOS_validation" 
             // ,"VK_LAYER_LUNARG_api_dump" // For all vulkan calls
         };
+
+        void DescriptorSetLayoutCreate();
         void GraphicsPipelineCreate();
         void RenderPassCreate();
         void FramebuffersCreate();
         void CommandPoolCreate();
         void VertexBufferCreate();
         void IndexBufferCreate();
+        void UniformBuffersCreate();
+        void DescriptorPoolCreate();
+        void DescriptorSetsCreate();
         void CommandBufferCreate();
         void CommandBufferRecord(VkCommandBuffer commandBuffer, uint32_t imageIndex);
         void SyncObjectsCreate();
+        void UniformBufferUpdate(u16 frameIndex);
     };
 } // namespace Quasar

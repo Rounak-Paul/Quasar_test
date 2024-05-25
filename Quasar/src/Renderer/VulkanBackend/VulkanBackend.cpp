@@ -83,6 +83,10 @@ namespace Quasar::RendererBackend
         QS_CORE_DEBUG("Creating Render Pass")
         RenderPassCreate();
 
+        // Descriptor
+        QS_CORE_DEBUG("Creating Descriptor Set Layout")
+        DescriptorSetLayoutCreate();
+
         // Graphics Pipeline
         QS_CORE_DEBUG("Creating Graphics pipeline")
         GraphicsPipelineCreate();
@@ -101,6 +105,15 @@ namespace Quasar::RendererBackend
         QS_CORE_DEBUG("Creating Index Buffer")
         IndexBufferCreate();
 
+        QS_CORE_DEBUG("Creating Uniform Buffer")
+        UniformBuffersCreate();
+
+        QS_CORE_DEBUG("Creating Descriptor Pool")
+        DescriptorPoolCreate();
+
+        QS_CORE_DEBUG("Creating Descriptor Sets")
+        DescriptorSetsCreate();
+
         // Frame Buffers
         QS_CORE_DEBUG("Creating Command Buffer")
         CommandBufferCreate();
@@ -114,6 +127,8 @@ namespace Quasar::RendererBackend
 
     void Backend::Shutdown() {
         vkDeviceWaitIdle(context->device.logicalDevice);
+
+        vkDestroyDescriptorPool(context->device.logicalDevice, context->descriptorPool, nullptr);
         
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             vkDestroySemaphore(context->device.logicalDevice, context->renderFinishedSemaphores[i], nullptr);
@@ -133,6 +148,14 @@ namespace Quasar::RendererBackend
         if (context->graphicsPipeline != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Graphics Pipeline");
             vkDestroyPipeline(context->device.logicalDevice, context->graphicsPipeline, context->allocator);
+        }
+        if (context->descriptorSetLayout != VK_NULL_HANDLE) {
+            QS_CORE_DEBUG("Destroying Descriptor Set Layout");
+            vkDestroyDescriptorSetLayout(context->device.logicalDevice, context->descriptorSetLayout, nullptr);
+        }
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            vkDestroyBuffer(context->device.logicalDevice, context->uniformBuffers[i], nullptr);
+            vkFreeMemory(context->device.logicalDevice, context->uniformBuffersMemory[i], nullptr);
         }
         if (context->pipelineLayout != VK_NULL_HANDLE) {
             QS_CORE_DEBUG("Destroying Pipeline Layout");
@@ -291,6 +314,24 @@ namespace Quasar::RendererBackend
         }
     }
 
+    void Backend::DescriptorSetLayoutCreate() {
+        VkDescriptorSetLayoutBinding uboLayoutBinding{};
+        uboLayoutBinding.binding = 0;
+        uboLayoutBinding.descriptorCount = 1;
+        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboLayoutBinding.pImmutableSamplers = nullptr;
+        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+        VkDescriptorSetLayoutCreateInfo layoutInfo{};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.bindingCount = 1;
+        layoutInfo.pBindings = &uboLayoutBinding;
+
+        if (vkCreateDescriptorSetLayout(context->device.logicalDevice, &layoutInfo, nullptr, &context->descriptorSetLayout) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create descriptor set layout!");
+        }
+    }
+
     void Backend::GraphicsPipelineCreate() {
         Filesystem fs;
 #ifdef QS_PLATFORM_WINDOWS
@@ -346,7 +387,7 @@ namespace Quasar::RendererBackend
         rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
         rasterizer.lineWidth = 1.0f;
         rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         rasterizer.depthBiasEnable = VK_FALSE;
 
         VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -380,8 +421,8 @@ namespace Quasar::RendererBackend
 
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = 0;
-        pipelineLayoutInfo.pushConstantRangeCount = 0;
+        pipelineLayoutInfo.setLayoutCount = 1;
+        pipelineLayoutInfo.pSetLayouts = &context->descriptorSetLayout;
 
         if (vkCreatePipelineLayout(context->device.logicalDevice, &pipelineLayoutInfo, nullptr, &context->pipelineLayout) != VK_SUCCESS) {
             QS_CORE_FATAL("failed to create pipeline layout!");
@@ -486,6 +527,68 @@ namespace Quasar::RendererBackend
         vkFreeMemory(context->device.logicalDevice, stagingBufferMemory, nullptr);
     }
 
+    void Backend::UniformBuffersCreate() {
+        VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+        context->uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+        context->uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+        context->uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            VulkanBufferCreate(context, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, context->uniformBuffers[i], context->uniformBuffersMemory[i]);
+
+            vkMapMemory(context->device.logicalDevice, context->uniformBuffersMemory[i], 0, bufferSize, 0, &context->uniformBuffersMapped[i]);
+        }
+    }
+
+    void Backend::DescriptorPoolCreate() {
+        VkDescriptorPoolSize poolSize{};
+        poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+        VkDescriptorPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.poolSizeCount = 1;
+        poolInfo.pPoolSizes = &poolSize;
+        poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+        if (vkCreateDescriptorPool(context->device.logicalDevice, &poolInfo, nullptr, &context->descriptorPool) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create descriptor pool!");
+        }
+    }
+
+    void Backend::DescriptorSetsCreate() {
+        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, context->descriptorSetLayout);
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = context->descriptorPool;
+        allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+        allocInfo.pSetLayouts = layouts.data();
+
+        context->descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+        if (vkAllocateDescriptorSets(context->device.logicalDevice, &allocInfo, context->descriptorSets.data()) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate descriptor sets!");
+        }
+
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            VkDescriptorBufferInfo bufferInfo{};
+            bufferInfo.buffer = context->uniformBuffers[i];
+            bufferInfo.offset = 0;
+            bufferInfo.range = sizeof(UniformBufferObject);
+
+            VkWriteDescriptorSet descriptorWrite{};
+            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrite.dstSet = context->descriptorSets[i];
+            descriptorWrite.dstBinding = 0;
+            descriptorWrite.dstArrayElement = 0;
+            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrite.descriptorCount = 1;
+            descriptorWrite.pBufferInfo = &bufferInfo;
+
+            vkUpdateDescriptorSets(context->device.logicalDevice, 1, &descriptorWrite, 0, nullptr);
+        }
+    }
+
     void Backend::CommandBufferCreate() {
         context->commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 
@@ -544,6 +647,8 @@ namespace Quasar::RendererBackend
 
             vkCmdBindIndexBuffer(commandBuffer, context->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->pipelineLayout, 0, 1, &context->descriptorSets[context->frameIndex], 0, nullptr);
+
             // vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
             vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
@@ -575,7 +680,20 @@ namespace Quasar::RendererBackend
         }
     }
 
-    void Backend::DrawFrame() {
+    void Backend::UniformBufferUpdate(u16 currentImage) {
+        static f32 clk;
+        clk += context->dt;
+        UniformBufferObject ubo{};
+        ubo.model = glm::rotate(glm::mat4(1.0f), clk * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.proj = glm::perspective(glm::radians(45.0f), context->swapchain.swapChainExtent.width / (float) context->swapchain.swapChainExtent.height, 0.1f, 10.0f);
+        ubo.proj[1][1] *= -1;
+
+        memcpy(context->uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+    }
+
+    void Backend::DrawFrame(f32 dt) {
+        context->dt = dt;
         vkWaitForFences(context->device.logicalDevice, 1, &context->inFlightFences[context->frameIndex], VK_TRUE, UINT64_MAX);
 
         uint32_t imageIndex;
@@ -592,6 +710,8 @@ namespace Quasar::RendererBackend
 
         vkResetCommandBuffer(context->commandBuffers[context->frameIndex], /*VkCommandBufferResetFlagBits*/ 0);
         CommandBufferRecord(context->commandBuffers[context->frameIndex], imageIndex);
+
+        UniformBufferUpdate(context->frameIndex);
 
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;

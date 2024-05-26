@@ -20,6 +20,7 @@ target_include_directories(Quasar PUBLIC
     ${PROJECT_SOURCE_DIR}/Quasar/Vendor/GLM
     ${VULKAN_PATH}/include
     ${PROJECT_SOURCE_DIR}/Quasar/Vendor/STB
+    ${PROJECT_SOURCE_DIR}/Quasar/Vendor/TINYOBJLOADER
 )
 
 target_link_directories(Quasar PUBLIC ${VULKAN_PATH}/lib)

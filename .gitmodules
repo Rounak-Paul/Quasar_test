@@ -7,3 +7,6 @@
 [submodule "Quasar/Vendor/STB"]
 	path = Quasar/Vendor/STB
 	url = https://github.com/Rounak-Paul/stb.git
+[submodule "Quasar/Vendor/TINYOBJLOADER"]
+	path = Quasar/Vendor/TINYOBJLOADER
+	url = https://github.com/Rounak-Paul/tinyobjloader.git

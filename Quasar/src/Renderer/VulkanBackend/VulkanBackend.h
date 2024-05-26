@@ -7,6 +7,7 @@
 #include "VulkanSwapchain.h"
 #include "VulkanShaderUtil.h"
 #include "VulkanBuffer.h"
+#include "VulkanImage.h"
 
 namespace Quasar::RendererBackend
 {
@@ -26,16 +27,21 @@ namespace Quasar::RendererBackend
 
         b8 framebufferResized = false;
 
-        const std::vector<Vertex> vertices = {
-            {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-            {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-            {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-            {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
-        };
+        std::vector<Vertex> vertices;
+        std::vector<u32> indices;
 
-        const std::vector<u16> indices = {
-            0, 1, 2, 2, 3, 0
-        };
+#ifdef QS_PLATFORM_WINDOWS
+        const std::string MODEL_PATH = "../../Assets/models/viking_room.obj";
+        const std::string TEXTURE_PATH = "../../Assets/textures/viking_room.png";
+#else
+        const std::string MODEL_PATH = "../Assets/models/viking_room.obj";
+        const std::string TEXTURE_PATH = "../Assets/textures/viking_room.png";
+#endif
+
+        // VkImage textureImage;
+        // VkDeviceMemory textureImageMemory;
+        // VkImageView textureImageView;
+        VulkanImage textureImage;
 
         private:
         VulkanContext* context = nullptr;
@@ -52,8 +58,13 @@ namespace Quasar::RendererBackend
         void DescriptorSetLayoutCreate();
         void GraphicsPipelineCreate();
         void RenderPassCreate();
-        void FramebuffersCreate();
         void CommandPoolCreate();
+        void DepthResourcesCreate();
+        void FramebuffersCreate();
+        void TextureImageCreate();
+        void TextureImageViewCreate();
+        void TextureSamplerCreate();
+        void ModelLoad();
         void VertexBufferCreate();
         void IndexBufferCreate();
         void UniformBuffersCreate();
@@ -63,5 +74,12 @@ namespace Quasar::RendererBackend
         void CommandBufferRecord(VkCommandBuffer commandBuffer, uint32_t imageIndex);
         void SyncObjectsCreate();
         void UniformBufferUpdate(u16 frameIndex);
+
+        void ImageCreate(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+        void ImageLayoutTransition(VulkanContext* context, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+        void CopyBufferToImage(VulkanContext* context, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+        VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+        VkFormat FindDepthFormat();
+        bool HasStencilComponent(VkFormat format);
     };
 } // namespace Quasar

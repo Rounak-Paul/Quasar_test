@@ -9,7 +9,7 @@ void VulkanBufferCreate(VulkanContext* context, VkDeviceSize size, VkBufferUsage
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     if (vkCreateBuffer(context->device.logicalDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create buffer!");
+        QS_CORE_FATAL("failed to create buffer!");
     }
 
     VkMemoryRequirements memRequirements;
@@ -21,7 +21,7 @@ void VulkanBufferCreate(VulkanContext* context, VkDeviceSize size, VkBufferUsage
     allocInfo.memoryTypeIndex = FindMemoryType(context, memRequirements.memoryTypeBits, properties);
 
     if (vkAllocateMemory(context->device.logicalDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate buffer memory!");
+        QS_CORE_FATAL("failed to allocate buffer memory!");
     }
 
     vkBindBufferMemory(context->device.logicalDevice, buffer, bufferMemory, 0);
@@ -36,39 +36,17 @@ u32 FindMemoryType(VulkanContext* context, uint32_t typeFilter, VkMemoryProperty
         }
     }
 
-    throw std::runtime_error("failed to find suitable memory type!");
+    QS_CORE_FATAL("failed to find suitable memory type!");
+    return -1;
 }
 
 void VulkanBufferCopy(VulkanContext* context, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = context->commandPool;
-    allocInfo.commandBufferCount = 1;
+    VkCommandBuffer commandBuffer = SingleUseCommandBegin(context);
 
-    VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(context->device.logicalDevice, &allocInfo, &commandBuffer);
+    VkBufferCopy copyRegion{};
+    copyRegion.size = size;
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-        VkBufferCopy copyRegion{};
-        copyRegion.size = size;
-        vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-
-    vkEndCommandBuffer(commandBuffer);
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer;
-
-    vkQueueSubmit(context->device.graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(context->device.graphicsQueue);
-
-    vkFreeCommandBuffers(context->device.logicalDevice, context->commandPool, 1, &commandBuffer);
+    SingleUseCommandEnd(context, commandBuffer);
 }
 }

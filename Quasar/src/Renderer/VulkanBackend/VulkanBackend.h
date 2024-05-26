@@ -27,22 +27,16 @@ namespace Quasar::RendererBackend
 
         b8 framebufferResized = false;
 
-        const std::vector<Vertex> vertices = {
-            {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-            {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-            {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-            {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+        std::vector<Vertex> vertices;
+        std::vector<u32> indices;
 
-            {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-            {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-            {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-            {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
-        };
-
-        const std::vector<uint16_t> indices = {
-            0, 1, 2, 2, 3, 0,
-            4, 5, 6, 6, 7, 4
-        };
+#ifdef QS_PLATFORM_WINDOWS
+        const std::string MODEL_PATH = "../../Assets/models/viking_room.obj";
+        const std::string TEXTURE_PATH = "../../Assets/textures/viking_room.png";
+#else
+        const std::string MODEL_PATH = "../Assets/models/viking_room.obj";
+        const std::string TEXTURE_PATH = "../Assets/textures/viking_room.png";
+#endif
 
         // VkImage textureImage;
         // VkDeviceMemory textureImageMemory;
@@ -70,6 +64,7 @@ namespace Quasar::RendererBackend
         void TextureImageCreate();
         void TextureImageViewCreate();
         void TextureSamplerCreate();
+        void ModelLoad();
         void VertexBufferCreate();
         void IndexBufferCreate();
         void UniformBuffersCreate();

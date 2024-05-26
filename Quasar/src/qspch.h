@@ -27,6 +27,7 @@
 // Customs
 #include <Defines.h>
 #include <Containers/String.h>
+#include <Containers/Hashmap.h>
 #include <Core/Log.h>
 
 

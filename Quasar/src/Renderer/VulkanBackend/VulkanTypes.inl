@@ -16,6 +16,10 @@ struct Vertex {
     glm::vec3 color;
     glm::vec2 texCoord;
 
+    bool operator==(const Vertex& other) const {
+        return pos == other.pos && color == other.color && texCoord == other.texCoord;
+    }
+
     static VkVertexInputBindingDescription getBindingDescription() {
         VkVertexInputBindingDescription bindingDescription{};
         bindingDescription.binding = 0;
@@ -52,9 +56,6 @@ typedef struct VulkanImage {
     VkDeviceMemory memory;
     VkImageView view;
     VkSampler sampler;
-    VkImage depthImage;
-    VkDeviceMemory depthImageMemory;
-    VkImageView depthImageView;
     u32 width;
     u32 height;
 } VulkanImage;
@@ -94,6 +95,7 @@ typedef struct VulkanSwapchain {
     VkFormat swapChainImageFormat;
     VkExtent2D swapChainExtent;
     std::vector<VkImageView> swapChainImageViews;
+    VulkanImage depthAttachment;
 } VulkanSwapchain;
 
 typedef struct VulkanContext {

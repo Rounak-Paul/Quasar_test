@@ -4,6 +4,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
 
 namespace Quasar::RendererBackend
 {
@@ -112,6 +114,9 @@ namespace Quasar::RendererBackend
         QS_CORE_DEBUG("Creating Texture Sampler")
         TextureSamplerCreate();
 
+        QS_CORE_DEBUG("Loading Model")
+        ModelLoad();
+
         QS_CORE_DEBUG("Creating Vertex Buffer")
         VertexBufferCreate();
 
@@ -148,9 +153,9 @@ namespace Quasar::RendererBackend
         vkDestroyImage(context->device.logicalDevice, textureImage.handle, nullptr);
         vkFreeMemory(context->device.logicalDevice, textureImage.memory, nullptr);
 
-        vkDestroyImageView(context->device.logicalDevice, textureImage.depthImageView, nullptr);
-        vkDestroyImage(context->device.logicalDevice, textureImage.depthImage, nullptr);
-        vkFreeMemory(context->device.logicalDevice, textureImage.depthImageMemory, nullptr);
+        vkDestroyImageView(context->device.logicalDevice, context->swapchain.depthAttachment.view, nullptr);
+        vkDestroyImage(context->device.logicalDevice, context->swapchain.depthAttachment.handle, nullptr);
+        vkFreeMemory(context->device.logicalDevice, context->swapchain.depthAttachment.memory, nullptr);
         
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             vkDestroySemaphore(context->device.logicalDevice, context->renderFinishedSemaphores[i], nullptr);
@@ -225,9 +230,9 @@ namespace Quasar::RendererBackend
         for (size_t i = 0; i < context->swapChainFramebuffers.size(); i++) {
             vkDestroyFramebuffer(context->device.logicalDevice, context->swapChainFramebuffers[i], nullptr);
         }
-        vkDestroyImageView(context->device.logicalDevice, textureImage.depthImageView, nullptr);
-        vkDestroyImage(context->device.logicalDevice, textureImage.depthImage, nullptr);
-        vkFreeMemory(context->device.logicalDevice, textureImage.depthImageMemory, nullptr);
+        vkDestroyImageView(context->device.logicalDevice, context->swapchain.depthAttachment.view, nullptr);
+        vkDestroyImage(context->device.logicalDevice, context->swapchain.depthAttachment.handle, nullptr);
+        vkFreeMemory(context->device.logicalDevice, context->swapchain.depthAttachment.memory, nullptr);
         VulkanSwapchainRecreate(context, &context->swapchain);
         DepthResourcesCreate();
         FramebuffersCreate();
@@ -527,7 +532,7 @@ namespace Quasar::RendererBackend
         for (size_t i = 0; i < context->swapchain.swapChainImageViews.size(); i++) {
             std::array<VkImageView, 2> attachments = {
                 context->swapchain.swapChainImageViews[i],
-                textureImage.depthImageView
+                context->swapchain.depthAttachment.view
             };
 
             VkFramebufferCreateInfo framebufferInfo{};
@@ -560,8 +565,8 @@ namespace Quasar::RendererBackend
     void Backend::DepthResourcesCreate() {
         VkFormat depthFormat = FindDepthFormat();
 
-        ImageCreate(context->swapchain.swapChainExtent.width, context->swapchain.swapChainExtent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage.depthImage, textureImage.depthImageMemory);
-        textureImage.depthImageView = VulkanImageViewCreate(context, textureImage.depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+        ImageCreate(context->swapchain.swapChainExtent.width, context->swapchain.swapChainExtent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, context->swapchain.depthAttachment.handle, context->swapchain.depthAttachment.memory);
+        context->swapchain.depthAttachment.view = VulkanImageViewCreate(context, context->swapchain.depthAttachment.handle, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
     }
 
     VkFormat Backend::FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
@@ -593,11 +598,7 @@ namespace Quasar::RendererBackend
 
     void Backend::TextureImageCreate() {
         int texWidth, texHeight, texChannels;
-#ifdef QS_PLATFORM_WINDOWS
-        stbi_uc* pixels = stbi_load("../../Assets/textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-#else
-        stbi_uc* pixels = stbi_load("../Assets/textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-#endif
+        stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize imageSize = texWidth * texHeight * 4;
 
         if (!pixels) {
@@ -756,6 +757,45 @@ namespace Quasar::RendererBackend
         );
 
         SingleUseCommandEnd(context, commandBuffer);
+    }
+
+    void Backend::ModelLoad() {
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::vector<tinyobj::material_t> materials;
+        std::string warn, err;
+
+        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) {
+            throw std::runtime_error(warn + err);
+        }
+
+        std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
+        for (const auto& shape : shapes) {
+            for (const auto& index : shape.mesh.indices) {
+                Vertex vertex{};
+
+                vertex.pos = {
+                    attrib.vertices[3 * index.vertex_index + 0],
+                    attrib.vertices[3 * index.vertex_index + 1],
+                    attrib.vertices[3 * index.vertex_index + 2]
+                };
+
+                vertex.texCoord = {
+                    attrib.texcoords[2 * index.texcoord_index + 0],
+                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+                };
+
+                vertex.color = {1.0f, 1.0f, 1.0f};
+
+                if (uniqueVertices.count(vertex) == 0) {
+                    uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+                    vertices.push_back(vertex);
+                }
+
+                indices.push_back(uniqueVertices[vertex]);
+            }
+        }
     }
 
     void Backend::VertexBufferCreate() {
@@ -935,7 +975,7 @@ namespace Quasar::RendererBackend
             VkDeviceSize offsets[] = {0};
             vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-            vkCmdBindIndexBuffer(commandBuffer, context->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+            vkCmdBindIndexBuffer(commandBuffer, context->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, context->pipelineLayout, 0, 1, &context->descriptorSets[context->frameIndex], 0, nullptr);
 

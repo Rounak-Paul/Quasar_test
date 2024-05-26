@@ -101,7 +101,7 @@ namespace Quasar::RendererBackend
         outSwapchain->swapChainImageViews.resize(outSwapchain->swapChainImages.size());
 
         for (uint32_t i = 0; i < outSwapchain->swapChainImages.size(); i++) {
-            outSwapchain->swapChainImageViews[i] = VulkanImageViewCreate(context, outSwapchain->swapChainImages[i], outSwapchain->swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+            outSwapchain->swapChainImageViews[i] = VulkanImageViewCreate(context, outSwapchain->swapChainImages[i], outSwapchain->swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
         }
     }
 

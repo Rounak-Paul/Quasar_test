@@ -55,10 +55,15 @@ typedef struct VulkanImage {
     VkImage handle;
     VkDeviceMemory memory;
     VkImageView view;
-    VkSampler sampler;
     u32 width;
     u32 height;
 } VulkanImage;
+
+typedef struct VulkanTexture {
+    VulkanImage texture;
+    VkSampler sampler;
+    u32 mipLevels;
+} VulkanTexture;
 
 typedef struct VulkanSwapchainSupportInfo {
     VkSurfaceCapabilitiesKHR capabilities;

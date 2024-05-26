@@ -38,10 +38,7 @@ namespace Quasar::RendererBackend
         const std::string TEXTURE_PATH = "../Assets/textures/viking_room.png";
 #endif
 
-        // VkImage textureImage;
-        // VkDeviceMemory textureImageMemory;
-        // VkImageView textureImageView;
-        VulkanImage textureImage;
+        VulkanTexture textureImage;
 
         private:
         VulkanContext* context = nullptr;
@@ -75,11 +72,12 @@ namespace Quasar::RendererBackend
         void SyncObjectsCreate();
         void UniformBufferUpdate(u16 frameIndex);
 
-        void ImageCreate(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
-        void ImageLayoutTransition(VulkanContext* context, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+        void ImageCreate(u32 width, u32 height, u32 mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+        void ImageLayoutTransition(VulkanContext* context, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, u32 mipLevels);
         void CopyBufferToImage(VulkanContext* context, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
         VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
         VkFormat FindDepthFormat();
         bool HasStencilComponent(VkFormat format);
+        void MipmapsGenerate(VkImage image, VkFormat imageFormat, i32 texWidth, i32 texHeight, u32 mipLevels);
     };
 } // namespace Quasar

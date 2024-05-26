@@ -149,9 +149,9 @@ namespace Quasar::RendererBackend
         vkDestroyDescriptorPool(context->device.logicalDevice, context->descriptorPool, nullptr);
 
         vkDestroySampler(context->device.logicalDevice, textureImage.sampler, nullptr);
-        vkDestroyImageView(context->device.logicalDevice, textureImage.view, nullptr);
-        vkDestroyImage(context->device.logicalDevice, textureImage.handle, nullptr);
-        vkFreeMemory(context->device.logicalDevice, textureImage.memory, nullptr);
+        vkDestroyImageView(context->device.logicalDevice, textureImage.texture.view, nullptr);
+        vkDestroyImage(context->device.logicalDevice, textureImage.texture.handle, nullptr);
+        vkFreeMemory(context->device.logicalDevice, textureImage.texture.memory, nullptr);
 
         vkDestroyImageView(context->device.logicalDevice, context->swapchain.depthAttachment.view, nullptr);
         vkDestroyImage(context->device.logicalDevice, context->swapchain.depthAttachment.handle, nullptr);
@@ -565,8 +565,8 @@ namespace Quasar::RendererBackend
     void Backend::DepthResourcesCreate() {
         VkFormat depthFormat = FindDepthFormat();
 
-        ImageCreate(context->swapchain.swapChainExtent.width, context->swapchain.swapChainExtent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, context->swapchain.depthAttachment.handle, context->swapchain.depthAttachment.memory);
-        context->swapchain.depthAttachment.view = VulkanImageViewCreate(context, context->swapchain.depthAttachment.handle, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+        ImageCreate(context->swapchain.swapChainExtent.width, context->swapchain.swapChainExtent.height, 1, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, context->swapchain.depthAttachment.handle, context->swapchain.depthAttachment.memory);
+        context->swapchain.depthAttachment.view = VulkanImageViewCreate(context, context->swapchain.depthAttachment.handle, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
     }
 
     VkFormat Backend::FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
@@ -600,6 +600,9 @@ namespace Quasar::RendererBackend
         int texWidth, texHeight, texChannels;
         stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize imageSize = texWidth * texHeight * 4;
+        textureImage.mipLevels = static_cast<u32>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+        textureImage.texture.width = texWidth;
+        textureImage.texture.height = texHeight;
 
         if (!pixels) {
             QS_CORE_FATAL("failed to load texture image!");
@@ -616,18 +619,107 @@ namespace Quasar::RendererBackend
 
         stbi_image_free(pixels);
 
-        ImageCreate(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage.handle, textureImage.memory);
+        ImageCreate(texWidth, texHeight, textureImage.mipLevels, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage.texture.handle, textureImage.texture.memory);
 
-        ImageLayoutTransition(context, textureImage.handle, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-            CopyBufferToImage(context, stagingBuffer, textureImage.handle, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-        ImageLayoutTransition(context, textureImage.handle, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        ImageLayoutTransition(context, textureImage.texture.handle, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, textureImage.mipLevels);
+            CopyBufferToImage(context, stagingBuffer, textureImage.texture.handle, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+        // ImageLayoutTransition(context, textureImage.texture.handle, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, textureImage.mipLevels);
+
+        MipmapsGenerate(textureImage.texture.handle, VK_FORMAT_R8G8B8A8_SRGB, textureImage.texture.width, textureImage.texture.height, textureImage.mipLevels);
 
         vkDestroyBuffer(context->device.logicalDevice, stagingBuffer, nullptr);
         vkFreeMemory(context->device.logicalDevice, stagingBufferMemory, nullptr);
     }
 
+    void Backend::MipmapsGenerate(VkImage image, VkFormat imageFormat, i32 texWidth, i32 texHeight, u32 mipLevels) {
+        // Check if image format supports linear blitting
+        VkFormatProperties formatProperties;
+        vkGetPhysicalDeviceFormatProperties(context->device.physicalDevice, imageFormat, &formatProperties);
+
+        if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+            throw std::runtime_error("texture image format does not support linear blitting!");
+        }
+
+        VkCommandBuffer commandBuffer = SingleUseCommandBegin(context);
+
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.image = image;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+        barrier.subresourceRange.levelCount = 1;
+
+        int32_t mipWidth = texWidth;
+        int32_t mipHeight = texHeight;
+
+        for (uint32_t i = 1; i < mipLevels; i++) {
+            barrier.subresourceRange.baseMipLevel = i - 1;
+            barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+            vkCmdPipelineBarrier(commandBuffer,
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+                0, nullptr,
+                0, nullptr,
+                1, &barrier);
+
+            VkImageBlit blit{};
+            blit.srcOffsets[0] = {0, 0, 0};
+            blit.srcOffsets[1] = {mipWidth, mipHeight, 1};
+            blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            blit.srcSubresource.mipLevel = i - 1;
+            blit.srcSubresource.baseArrayLayer = 0;
+            blit.srcSubresource.layerCount = 1;
+            blit.dstOffsets[0] = {0, 0, 0};
+            blit.dstOffsets[1] = { mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1 };
+            blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            blit.dstSubresource.mipLevel = i;
+            blit.dstSubresource.baseArrayLayer = 0;
+            blit.dstSubresource.layerCount = 1;
+
+            vkCmdBlitImage(commandBuffer,
+                image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                1, &blit,
+                VK_FILTER_LINEAR);
+
+            barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+            vkCmdPipelineBarrier(commandBuffer,
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+                0, nullptr,
+                0, nullptr,
+                1, &barrier);
+
+            if (mipWidth > 1) mipWidth /= 2;
+            if (mipHeight > 1) mipHeight /= 2;
+        }
+
+        barrier.subresourceRange.baseMipLevel = mipLevels - 1;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(commandBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
+
+        SingleUseCommandEnd(context, commandBuffer);
+    }
+
     void Backend::TextureImageViewCreate() {
-        textureImage.view = VulkanImageViewCreate(context, textureImage.handle, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+        textureImage.texture.view = VulkanImageViewCreate(context, textureImage.texture.handle, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, textureImage.mipLevels);
     }
 
     void Backend::TextureSamplerCreate() {
@@ -648,20 +740,24 @@ namespace Quasar::RendererBackend
         samplerInfo.compareEnable = VK_FALSE;
         samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
         samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        samplerInfo.minLod = 0.0f; // Optional
+        // samplerInfo.minLod = static_cast<f32>(textureImage.mipLevels/2);
+        samplerInfo.maxLod = static_cast<f32>(textureImage.mipLevels);
+        samplerInfo.mipLodBias = 0.0f; // Optional
 
         if (vkCreateSampler(context->device.logicalDevice, &samplerInfo, nullptr, &textureImage.sampler) != VK_SUCCESS) {
             throw std::runtime_error("failed to create texture sampler!");
         }
     }
 
-    void Backend::ImageCreate(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
+    void Backend::ImageCreate(u32 width, u32 height, u32 mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
         VkImageCreateInfo imageInfo{};
         imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.extent.width = width;
         imageInfo.extent.height = height;
         imageInfo.extent.depth = 1;
-        imageInfo.mipLevels = 1;
+        imageInfo.mipLevels = mipLevels;
         imageInfo.arrayLayers = 1;
         imageInfo.format = format;
         imageInfo.tiling = tiling;
@@ -712,7 +808,7 @@ namespace Quasar::RendererBackend
         SingleUseCommandEnd(context, commandBuffer);
     }
 
-    void Backend::ImageLayoutTransition(VulkanContext* context, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
+    void Backend::ImageLayoutTransition(VulkanContext* context, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, u32 mipLevels) {
         VkCommandBuffer commandBuffer = SingleUseCommandBegin(context);
 
         VkImageMemoryBarrier barrier{};
@@ -724,7 +820,7 @@ namespace Quasar::RendererBackend
         barrier.image = image;
         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         barrier.subresourceRange.baseMipLevel = 0;
-        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.levelCount = mipLevels;
         barrier.subresourceRange.baseArrayLayer = 0;
         barrier.subresourceRange.layerCount = 1;
 
@@ -891,7 +987,7 @@ namespace Quasar::RendererBackend
 
             VkDescriptorImageInfo imageInfo{};
             imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = textureImage.view;
+            imageInfo.imageView = textureImage.texture.view;
             imageInfo.sampler = textureImage.sampler;
 
             std::array<VkWriteDescriptorSet, 2> descriptorWrites{};

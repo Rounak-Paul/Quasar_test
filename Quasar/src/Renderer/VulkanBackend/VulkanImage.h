@@ -5,5 +5,5 @@
 
 namespace Quasar::RendererBackend
 {
-    VkImageView VulkanImageViewCreate(VulkanContext* context, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+    VkImageView VulkanImageViewCreate(VulkanContext* context, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, u32 mipLevels);
 } // namespace Quasar::RendererBackend

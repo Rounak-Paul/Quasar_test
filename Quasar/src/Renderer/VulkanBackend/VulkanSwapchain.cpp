@@ -1,6 +1,7 @@
 #include "VulkanSwapchain.h"
 
 #include <Core/Application.h>
+#include "VulkanImage.h"
 
 namespace Quasar::RendererBackend
 {
@@ -99,25 +100,8 @@ namespace Quasar::RendererBackend
     void __ImageViewsCreate(VulkanContext* context, VulkanSwapchain* outSwapchain) {
         outSwapchain->swapChainImageViews.resize(outSwapchain->swapChainImages.size());
 
-        for (size_t i = 0; i < outSwapchain->swapChainImages.size(); i++) {
-            VkImageViewCreateInfo createInfo{};
-            createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            createInfo.image = outSwapchain->swapChainImages[i];
-            createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            createInfo.format = outSwapchain->swapChainImageFormat;
-            createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-            createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-            createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-            createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-            createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            createInfo.subresourceRange.baseMipLevel = 0;
-            createInfo.subresourceRange.levelCount = 1;
-            createInfo.subresourceRange.baseArrayLayer = 0;
-            createInfo.subresourceRange.layerCount = 1;
-
-            if (vkCreateImageView(context->device.logicalDevice, &createInfo, nullptr, &outSwapchain->swapChainImageViews[i]) != VK_SUCCESS) {
-                QS_CORE_FATAL("failed to create image views!");
-            }
+        for (uint32_t i = 0; i < outSwapchain->swapChainImages.size(); i++) {
+            outSwapchain->swapChainImageViews[i] = VulkanImageViewCreate(context, outSwapchain->swapChainImages[i], outSwapchain->swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
         }
     }
 

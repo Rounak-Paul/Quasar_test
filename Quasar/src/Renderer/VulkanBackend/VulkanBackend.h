@@ -7,6 +7,7 @@
 #include "VulkanSwapchain.h"
 #include "VulkanShaderUtil.h"
 #include "VulkanBuffer.h"
+#include "VulkanImage.h"
 
 namespace Quasar::RendererBackend
 {
@@ -27,18 +28,26 @@ namespace Quasar::RendererBackend
         b8 framebufferResized = false;
 
         const std::vector<Vertex> vertices = {
-            {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-            {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-            {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-            {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}},
+            {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+            {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+            {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+            {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+
+            {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+            {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+            {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+            {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
         };
 
-        const std::vector<u16> indices = {
-            0, 1, 2, 2, 3, 0
+        const std::vector<uint16_t> indices = {
+            0, 1, 2, 2, 3, 0,
+            4, 5, 6, 6, 7, 4
         };
 
-        VkImage textureImage;
-        VkDeviceMemory textureImageMemory;
+        // VkImage textureImage;
+        // VkDeviceMemory textureImageMemory;
+        // VkImageView textureImageView;
+        VulkanImage textureImage;
 
         private:
         VulkanContext* context = nullptr;
@@ -55,9 +64,12 @@ namespace Quasar::RendererBackend
         void DescriptorSetLayoutCreate();
         void GraphicsPipelineCreate();
         void RenderPassCreate();
-        void FramebuffersCreate();
         void CommandPoolCreate();
+        void DepthResourcesCreate();
+        void FramebuffersCreate();
         void TextureImageCreate();
+        void TextureImageViewCreate();
+        void TextureSamplerCreate();
         void VertexBufferCreate();
         void IndexBufferCreate();
         void UniformBuffersCreate();
@@ -71,5 +83,8 @@ namespace Quasar::RendererBackend
         void ImageCreate(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
         void ImageLayoutTransition(VulkanContext* context, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
         void CopyBufferToImage(VulkanContext* context, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+        VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+        VkFormat FindDepthFormat();
+        bool HasStencilComponent(VkFormat format);
     };
 } // namespace Quasar

@@ -9,7 +9,7 @@ void VulkanBufferCreate(VulkanContext* context, VkDeviceSize size, VkBufferUsage
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     if (vkCreateBuffer(context->device.logicalDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create buffer!");
+        QS_CORE_FATAL("failed to create buffer!");
     }
 
     VkMemoryRequirements memRequirements;
@@ -21,7 +21,7 @@ void VulkanBufferCreate(VulkanContext* context, VkDeviceSize size, VkBufferUsage
     allocInfo.memoryTypeIndex = FindMemoryType(context, memRequirements.memoryTypeBits, properties);
 
     if (vkAllocateMemory(context->device.logicalDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate buffer memory!");
+        QS_CORE_FATAL("failed to allocate buffer memory!");
     }
 
     vkBindBufferMemory(context->device.logicalDevice, buffer, bufferMemory, 0);
@@ -36,7 +36,8 @@ u32 FindMemoryType(VulkanContext* context, uint32_t typeFilter, VkMemoryProperty
         }
     }
 
-    throw std::runtime_error("failed to find suitable memory type!");
+    QS_CORE_FATAL("failed to find suitable memory type!");
+    return -1;
 }
 
 void VulkanBufferCopy(VulkanContext* context, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {

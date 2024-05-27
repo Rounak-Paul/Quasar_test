@@ -18,6 +18,9 @@ namespace Quasar
         QS_CORE_INFO("Initializing Event System...")
         if (!Event::Init()) {QS_CORE_ERROR("Event system failed to Initialize")}
 
+        QS_CORE_INFO("Initializing Input System...")
+        if (!Input::Init()) {QS_CORE_ERROR("Event system failed to Initialize")}
+
         QS_CORE_INFO("Initializing Renderer...")
         if (!QS_RENDERER_API.Init(state.app_name)) {QS_CORE_ERROR("Renderer failed to Initialize")}
 
@@ -33,11 +36,11 @@ namespace Quasar
         u32 frameCount = 0;
         f32 clk1Hz = 0.;
 
-        while(!m_window.ShouldClose()) {
+        while((!(m_window.ShouldClose() || (QS_INPUT.GetKeyState(QS_KEY_Q) != 0)))) {
             if (m_state.suspended) { 
                 m_window.WaitEvents();
                 continue; 
-            } 
+            }
             m_window.PollEvents();
 
             // clock update and dt

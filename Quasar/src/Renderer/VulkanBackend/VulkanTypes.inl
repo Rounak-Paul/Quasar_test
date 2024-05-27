@@ -20,7 +20,7 @@ struct Vertex {
         return pos == other.pos && color == other.color && texCoord == other.texCoord;
     }
 
-    static VkVertexInputBindingDescription getBindingDescription() {
+    static VkVertexInputBindingDescription GetBindingDescription() {
         VkVertexInputBindingDescription bindingDescription{};
         bindingDescription.binding = 0;
         bindingDescription.stride = sizeof(Vertex);
@@ -29,7 +29,7 @@ struct Vertex {
         return bindingDescription;
     }
 
-    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
+    static std::array<VkVertexInputAttributeDescription, 3> GetAttributeDescriptions() {
         std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
 
         attributeDescriptions[0].binding = 0;
@@ -92,6 +92,8 @@ typedef struct VulkanDevice {
     VkPhysicalDeviceMemoryProperties memory;
 
     VkFormat depthFormat;
+
+    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 } VulkanDevice;
 
 typedef struct VulkanSwapchain {
@@ -118,7 +120,7 @@ typedef struct VulkanContext {
     VkDescriptorSetLayout descriptorSetLayout;
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
-    std::vector<VkFramebuffer> swapChainFramebuffers;
+    std::vector<VkFramebuffer> swapchainFramebuffers;
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
 
@@ -132,8 +134,6 @@ typedef struct VulkanContext {
     VkDeviceMemory indexBufferMemory;
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
-
-    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;

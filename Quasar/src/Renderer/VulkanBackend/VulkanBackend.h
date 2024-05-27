@@ -73,9 +73,6 @@ namespace Quasar::RendererBackend
         void SyncObjectsCreate();
         void UniformBufferUpdate(u16 frameIndex);
 
-        void ImageCreate(u32 width, u32 height, u32 mipLevels,VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
-        void ImageLayoutTransition(VulkanContext* context, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, u32 mipLevels);
-        void CopyBufferToImage(VulkanContext* context, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
         VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
         VkFormat FindDepthFormat();
         bool HasStencilComponent(VkFormat format);

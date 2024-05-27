@@ -157,9 +157,9 @@ namespace Quasar::RendererBackend
         vkFreeMemory(context->device.logicalDevice, textureImage.texture.memory, nullptr);
 
         // TODO: move this inside swapchain
-        vkDestroyImageView(context->device.logicalDevice, context->colorImageView, nullptr);
-        vkDestroyImage(context->device.logicalDevice, context->colorImage, nullptr);
-        vkFreeMemory(context->device.logicalDevice, context->colorImageMemory, nullptr);
+        vkDestroyImageView(context->device.logicalDevice, context->swapchain.colorAttachment.view, nullptr);
+        vkDestroyImage(context->device.logicalDevice, context->swapchain.colorAttachment.handle, nullptr);
+        vkFreeMemory(context->device.logicalDevice, context->swapchain.colorAttachment.memory, nullptr);
 
         vkDestroyImageView(context->device.logicalDevice, context->swapchain.depthAttachment.view, nullptr);
         vkDestroyImage(context->device.logicalDevice, context->swapchain.depthAttachment.handle, nullptr);
@@ -238,9 +238,9 @@ namespace Quasar::RendererBackend
         for (size_t i = 0; i < context->swapChainFramebuffers.size(); i++) {
             vkDestroyFramebuffer(context->device.logicalDevice, context->swapChainFramebuffers[i], nullptr);
         }
-        vkDestroyImageView(context->device.logicalDevice, context->colorImageView, nullptr);
-        vkDestroyImage(context->device.logicalDevice, context->colorImage, nullptr);
-        vkFreeMemory(context->device.logicalDevice, context->colorImageMemory, nullptr);
+        vkDestroyImageView(context->device.logicalDevice, context->swapchain.colorAttachment.view, nullptr);
+        vkDestroyImage(context->device.logicalDevice, context->swapchain.colorAttachment.handle, nullptr);
+        vkFreeMemory(context->device.logicalDevice, context->swapchain.colorAttachment.memory, nullptr);
         vkDestroyImageView(context->device.logicalDevice, context->swapchain.depthAttachment.view, nullptr);
         vkDestroyImage(context->device.logicalDevice, context->swapchain.depthAttachment.handle, nullptr);
         vkFreeMemory(context->device.logicalDevice, context->swapchain.depthAttachment.memory, nullptr);
@@ -327,7 +327,7 @@ namespace Quasar::RendererBackend
 
     void Backend::RenderPassCreate() {
         VkAttachmentDescription colorAttachment{};
-        colorAttachment.format = context->swapchain.swapChainImageFormat;
+        colorAttachment.format = context->swapchain.swapchainImageFormat;
         colorAttachment.samples = context->msaaSamples;
         colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -347,7 +347,7 @@ namespace Quasar::RendererBackend
         depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
         VkAttachmentDescription colorAttachmentResolve{};
-        colorAttachmentResolve.format = context->swapchain.swapChainImageFormat;
+        colorAttachmentResolve.format = context->swapchain.swapchainImageFormat;
         colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
         colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -554,13 +554,13 @@ namespace Quasar::RendererBackend
     }
 
     void Backend::FramebuffersCreate() {
-        context->swapChainFramebuffers.resize(context->swapchain.swapChainImageViews.size());
+        context->swapChainFramebuffers.resize(context->swapchain.swapchainImageViews.size());
 
-        for (size_t i = 0; i < context->swapchain.swapChainImageViews.size(); i++) {
+        for (size_t i = 0; i < context->swapchain.swapchainImageViews.size(); i++) {
             std::array<VkImageView, 3> attachments = {
-            context->colorImageView,
+            context->swapchain.colorAttachment.view,
             context->swapchain.depthAttachment.view,
-            context->swapchain.swapChainImageViews[i]
+            context->swapchain.swapchainImageViews[i]
         };
 
             VkFramebufferCreateInfo framebufferInfo{};
@@ -568,8 +568,8 @@ namespace Quasar::RendererBackend
             framebufferInfo.renderPass = context->renderpass;
             framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
             framebufferInfo.pAttachments = attachments.data();
-            framebufferInfo.width = context->swapchain.swapChainExtent.width;
-            framebufferInfo.height = context->swapchain.swapChainExtent.height;
+            framebufferInfo.width = context->swapchain.swapchainExtent.width;
+            framebufferInfo.height = context->swapchain.swapchainExtent.height;
             framebufferInfo.layers = 1;
 
             if (vkCreateFramebuffer(context->device.logicalDevice, &framebufferInfo, nullptr, &context->swapChainFramebuffers[i]) != VK_SUCCESS) {
@@ -593,7 +593,7 @@ namespace Quasar::RendererBackend
     void Backend::DepthResourcesCreate() {
         VkFormat depthFormat = FindDepthFormat();
 
-        ImageCreate(context->swapchain.swapChainExtent.width, context->swapchain.swapChainExtent.height, 1, context->msaaSamples, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, context->swapchain.depthAttachment.handle, context->swapchain.depthAttachment.memory);
+        ImageCreate(context->swapchain.swapchainExtent.width, context->swapchain.swapchainExtent.height, 1, context->msaaSamples, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, context->swapchain.depthAttachment.handle, context->swapchain.depthAttachment.memory);
         context->swapchain.depthAttachment.view = VulkanImageViewCreate(context, context->swapchain.depthAttachment.handle, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
     }
 
@@ -660,10 +660,10 @@ namespace Quasar::RendererBackend
     }
 
     void Backend::ColorResourcesCreate() {
-        VkFormat colorFormat = context->swapchain.swapChainImageFormat;
+        VkFormat colorFormat = context->swapchain.swapchainImageFormat;
 
-        ImageCreate(context->swapchain.swapChainExtent.width, context->swapchain.swapChainExtent.height, 1, context->msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, context->colorImage, context->colorImageMemory);
-        context->colorImageView = VulkanImageViewCreate(context, context->colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+        ImageCreate(context->swapchain.swapchainExtent.width, context->swapchain.swapchainExtent.height, 1, context->msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, context->swapchain.colorAttachment.handle, context->swapchain.colorAttachment.memory);
+        context->swapchain.colorAttachment.view = VulkanImageViewCreate(context, context->swapchain.colorAttachment.handle, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     }
 
     void Backend::MipmapsGenerate(VkImage image, VkFormat imageFormat, i32 texWidth, i32 texHeight, u32 mipLevels) {
@@ -1075,7 +1075,7 @@ namespace Quasar::RendererBackend
         renderPassInfo.renderPass = context->renderpass;
         renderPassInfo.framebuffer = context->swapChainFramebuffers[imageIndex];
         renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = context->swapchain.swapChainExtent;
+        renderPassInfo.renderArea.extent = context->swapchain.swapchainExtent;
 
         std::array<VkClearValue, 2> clearValues{};
         clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
@@ -1091,15 +1091,15 @@ namespace Quasar::RendererBackend
             VkViewport viewport{};
             viewport.x = 0.0f;
             viewport.y = 0.0f;
-            viewport.width = (float) context->swapchain.swapChainExtent.width;
-            viewport.height = (float) context->swapchain.swapChainExtent.height;
+            viewport.width = (float) context->swapchain.swapchainExtent.width;
+            viewport.height = (float) context->swapchain.swapchainExtent.height;
             viewport.minDepth = 0.0f;
             viewport.maxDepth = 1.0f;
             vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
             VkRect2D scissor{};
             scissor.offset = {0, 0};
-            scissor.extent = context->swapchain.swapChainExtent;
+            scissor.extent = context->swapchain.swapchainExtent;
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);            
 
             VkBuffer vertexBuffers[] = {context->vertexBuffer};
@@ -1143,11 +1143,11 @@ namespace Quasar::RendererBackend
 
     void Backend::UniformBufferUpdate(u16 currentImage) {
         static f32 clk;
-        clk += context->dt;
+        // clk += context->dt;
         UniformBufferObject ubo{};
         ubo.model = glm::rotate(glm::mat4(1.0f), clk * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.proj = glm::perspective(glm::radians(45.0f), context->swapchain.swapChainExtent.width / (float) context->swapchain.swapChainExtent.height, 0.1f, 10.0f);
+        ubo.proj = glm::perspective(glm::radians(45.0f), context->swapchain.swapchainExtent.width / (float) context->swapchain.swapchainExtent.height, 0.1f, 10.0f);
         ubo.proj[1][1] *= -1;
 
         memcpy(context->uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));

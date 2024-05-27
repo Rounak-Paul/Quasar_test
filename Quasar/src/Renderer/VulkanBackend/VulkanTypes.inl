@@ -96,11 +96,12 @@ typedef struct VulkanDevice {
 
 typedef struct VulkanSwapchain {
     VkSwapchainKHR handle;
-    std::vector<VkImage> swapChainImages;
-    VkFormat swapChainImageFormat;
-    VkExtent2D swapChainExtent;
-    std::vector<VkImageView> swapChainImageViews;
+    std::vector<VkImage> swapchainImages;
+    VkFormat swapchainImageFormat;
+    VkExtent2D swapchainExtent;
+    std::vector<VkImageView> swapchainImageViews;
     VulkanImage depthAttachment;
+    VulkanImage colorAttachment;
 } VulkanSwapchain;
 
 typedef struct VulkanContext {
@@ -133,9 +134,6 @@ typedef struct VulkanContext {
     VkDeviceMemory stagingBufferMemory;
 
     VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
-    VkImage colorImage;
-    VkDeviceMemory colorImageMemory;
-    VkImageView colorImageView;
 
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;

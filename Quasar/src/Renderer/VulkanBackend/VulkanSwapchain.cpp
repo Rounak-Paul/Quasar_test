@@ -75,11 +75,11 @@ namespace Quasar::RendererBackend
         }
 
         vkGetSwapchainImagesKHR(context->device.logicalDevice, outSwapchain->handle, &imageCount, nullptr);
-        outSwapchain->swapChainImages.resize(imageCount);
-        vkGetSwapchainImagesKHR(context->device.logicalDevice, outSwapchain->handle, &imageCount, outSwapchain->swapChainImages.data());
+        outSwapchain->swapchainImages.resize(imageCount);
+        vkGetSwapchainImagesKHR(context->device.logicalDevice, outSwapchain->handle, &imageCount, outSwapchain->swapchainImages.data());
 
-        outSwapchain->swapChainImageFormat = surfaceFormat.format;
-        outSwapchain->swapChainExtent = extent;
+        outSwapchain->swapchainImageFormat = surfaceFormat.format;
+        outSwapchain->swapchainExtent = extent;
 
         // TODO: move to VulkanImage
         __ImageViewsCreate(context, outSwapchain);
@@ -88,20 +88,20 @@ namespace Quasar::RendererBackend
 
     void __Destroy(VulkanContext* context, VulkanSwapchain* swapchain) {
         // TODO: move to VulkanImage
-        for (auto it : swapchain->swapChainImageViews) {
+        for (auto it : swapchain->swapchainImageViews) {
             vkDestroyImageView(context->device.logicalDevice, it, nullptr);
         }
 
-        swapchain->swapChainImages.clear();
+        swapchain->swapchainImages.clear();
         vkDestroySwapchainKHR(context->device.logicalDevice, swapchain->handle, nullptr);
     }
 
     // TODO: move to VulkanImage
     void __ImageViewsCreate(VulkanContext* context, VulkanSwapchain* outSwapchain) {
-        outSwapchain->swapChainImageViews.resize(outSwapchain->swapChainImages.size());
+        outSwapchain->swapchainImageViews.resize(outSwapchain->swapchainImages.size());
 
-        for (uint32_t i = 0; i < outSwapchain->swapChainImages.size(); i++) {
-            outSwapchain->swapChainImageViews[i] = VulkanImageViewCreate(context, outSwapchain->swapChainImages[i], outSwapchain->swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+        for (uint32_t i = 0; i < outSwapchain->swapchainImages.size(); i++) {
+            outSwapchain->swapchainImageViews[i] = VulkanImageViewCreate(context, outSwapchain->swapchainImages[i], outSwapchain->swapchainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
         }
     }
 

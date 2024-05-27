@@ -9,9 +9,24 @@
 
 #pragma once
 
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
+
+#include <memory>
+
+
+namespace Quasar {
+
+template<typename T> 
+using Scope = std::unique_ptr<T>;
+
+template<typename T>
+using Ref = std::shared_ptr<T>;
 
 // Unsigned int types.
 
@@ -116,19 +131,13 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 
 // TODO: remove after adding custom math library
 /** @brief Assert glm::mat2 to be 4*2*2 bytes.*/
-STATIC_ASSERT(sizeof(glm::mat2) == 4*2*2, "Expected f64 to be 8 bytes.");
+STATIC_ASSERT(sizeof(glm::mat2) == 4*2*2, "Expected f32 to be 4 bytes.");
 
 /** @brief Assert glm::mat3 to be 4*3*3 bytes.*/
-STATIC_ASSERT(sizeof(glm::mat3) == 4*3*3, "Expected f64 to be 8 bytes.");
+STATIC_ASSERT(sizeof(glm::mat3) == 4*3*3, "Expected f32 to be 4 bytes.");
 
 /** @brief Assert glm::mat4 to be 4*4*4 bytes.*/
-STATIC_ASSERT(sizeof(glm::mat4) == 4*4*4, "Expected f64 to be 8 bytes.");
-
-/** @brief True.*/
-#define TRUE true
-
-/** @brief False. */
-#define FALSE false
+STATIC_ASSERT(sizeof(glm::mat4) == 4*4*4, "Expected f32 to be 4 bytes.");
 
 /**
  * @brief Any id set to this should be considered invalid,
@@ -173,24 +182,24 @@ STATIC_ASSERT(sizeof(glm::mat4) == 4*4*4, "Expected f64 to be 8 bytes.");
 // Inlining
 #if defined(__clang__) || defined(__gcc__)
 /** @brief Inline qualifier */
-#define QSINLINE __attribute__((always_inline)) inline
+#define QS_INLINE __attribute__((always_inline)) inline
 
 /** @brief No-inline qualifier */
-#define QSNOINLINE __attribute__((noinline))
+#define QS_NOINLINE __attribute__((noinline))
 #elif defined(_MSC_VER)
 
 /** @brief Inline qualifier */
-#define QSINLINE __forceinline
+#define QS_INLINE __forceinline
 
 /** @brief No-inline qualifier */
-#define QSNOINLINE __declspec(noinline)
+#define QS_NOINLINE __declspec(noinline)
 #else
 
 /** @brief Inline qualifier */
-#define QSINLINE static inline
+#define QS_INLINE static inline
 
 /** @brief No-inline qualifier */
-#define QSNOINLINE
+#define QS_NOINLINE
 #endif
 
 /** @brief Gets the number of bytes from amount of gibibytes (GiB) (1024*1024*1024) */
@@ -207,10 +216,11 @@ STATIC_ASSERT(sizeof(glm::mat4) == 4*4*4, "Expected f64 to be 8 bytes.");
 /** @brief Gets the number of bytes from amount of kilobytes (KB) (1000) */
 #define KILOBYTES(amount) amount * 1000
 
-QSINLINE u64 get_aligned(u64 operand, u64 granularity) {
+QS_INLINE u64 get_aligned(u64 operand, u64 granularity) {
     return ((operand + (granularity - 1)) & ~(granularity - 1));
 }
 
-QSINLINE range get_aligned_range(u64 offset, u64 size, u64 granularity) {
+QS_INLINE range get_aligned_range(u64 offset, u64 size, u64 granularity) {
     return range{get_aligned(offset, granularity), get_aligned(size, granularity)};
+}
 }

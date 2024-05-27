@@ -17,6 +17,7 @@
 #include <list>
 #include <algorithm>
 #include <string>
+#include <array>
 #pragma warning(pop)
 
 // Vendor
@@ -24,5 +25,9 @@
 #include <GLFW/glfw3.h>
 
 // Customs
+#include <Defines.h>
+#include <Containers/String.h>
+#include <Containers/Hashmap.h>
+#include <Core/Log.h>
 
 

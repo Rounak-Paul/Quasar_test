@@ -4,16 +4,16 @@
 class App : public Quasar::Application
 {
 public:
-	App(Quasar::app_state state)
+	App(Quasar::AppState state)
         : Application(state) { 
         }
 		
 	~App() { }
 };
 
-Quasar::Application* Quasar::create_application()
+Quasar::Application* Quasar::CreateApplication()
 {
-    Quasar::app_state state;
+    Quasar::AppState state;
     state.width = 800;
     state.height = 600;
     state.app_name = "Editor - Quasar Engine";

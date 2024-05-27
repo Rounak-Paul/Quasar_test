@@ -8,4 +8,5 @@ namespace Quasar::RendererBackend {
     void VulkanDeviceDestroy(VulkanContext* context, VulkanDevice* device);
     b8 VulkanDeviceDetectDepthFormat(VulkanDevice* device);
     void VulkanDeviceQuerySwapchainSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, VulkanSwapchainSupportInfo* outSupportInfo);
+    VkSampleCountFlagBits GetMaxUsableSampleCount(VulkanContext* context);
 }

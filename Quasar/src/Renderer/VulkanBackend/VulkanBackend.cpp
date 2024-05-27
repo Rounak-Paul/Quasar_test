@@ -99,6 +99,9 @@ namespace Quasar::RendererBackend
         QS_CORE_DEBUG("Creating Command Pool")
         CommandPoolCreate();
 
+        QS_CORE_DEBUG("Creating Color Resource")
+        ColorResourcesCreate();
+
         QS_CORE_DEBUG("Creating Depth Resource")
         DepthResourcesCreate();
 
@@ -152,6 +155,11 @@ namespace Quasar::RendererBackend
         vkDestroyImageView(context->device.logicalDevice, textureImage.texture.view, nullptr);
         vkDestroyImage(context->device.logicalDevice, textureImage.texture.handle, nullptr);
         vkFreeMemory(context->device.logicalDevice, textureImage.texture.memory, nullptr);
+
+        // TODO: move this inside swapchain
+        vkDestroyImageView(context->device.logicalDevice, context->colorImageView, nullptr);
+        vkDestroyImage(context->device.logicalDevice, context->colorImage, nullptr);
+        vkFreeMemory(context->device.logicalDevice, context->colorImageMemory, nullptr);
 
         vkDestroyImageView(context->device.logicalDevice, context->swapchain.depthAttachment.view, nullptr);
         vkDestroyImage(context->device.logicalDevice, context->swapchain.depthAttachment.handle, nullptr);
@@ -230,10 +238,14 @@ namespace Quasar::RendererBackend
         for (size_t i = 0; i < context->swapChainFramebuffers.size(); i++) {
             vkDestroyFramebuffer(context->device.logicalDevice, context->swapChainFramebuffers[i], nullptr);
         }
+        vkDestroyImageView(context->device.logicalDevice, context->colorImageView, nullptr);
+        vkDestroyImage(context->device.logicalDevice, context->colorImage, nullptr);
+        vkFreeMemory(context->device.logicalDevice, context->colorImageMemory, nullptr);
         vkDestroyImageView(context->device.logicalDevice, context->swapchain.depthAttachment.view, nullptr);
         vkDestroyImage(context->device.logicalDevice, context->swapchain.depthAttachment.handle, nullptr);
         vkFreeMemory(context->device.logicalDevice, context->swapchain.depthAttachment.memory, nullptr);
         VulkanSwapchainRecreate(context, &context->swapchain);
+        ColorResourcesCreate();
         DepthResourcesCreate();
         FramebuffersCreate();
     }
@@ -316,23 +328,33 @@ namespace Quasar::RendererBackend
     void Backend::RenderPassCreate() {
         VkAttachmentDescription colorAttachment{};
         colorAttachment.format = context->swapchain.swapChainImageFormat;
-        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachment.samples = context->msaaSamples;
         colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
         VkAttachmentDescription depthAttachment{};
         depthAttachment.format = FindDepthFormat();
-        depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        depthAttachment.samples = context->msaaSamples;
         depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        VkAttachmentDescription colorAttachmentResolve{};
+        colorAttachmentResolve.format = context->swapchain.swapChainImageFormat;
+        colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
         VkAttachmentReference colorAttachmentRef{};
         colorAttachmentRef.attachment = 0;
@@ -342,11 +364,16 @@ namespace Quasar::RendererBackend
         depthAttachmentRef.attachment = 1;
         depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
+        VkAttachmentReference colorAttachmentResolveRef{};
+        colorAttachmentResolveRef.attachment = 2;
+        colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
         VkSubpassDescription subpass{};
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount = 1;
         subpass.pColorAttachments = &colorAttachmentRef;
         subpass.pDepthStencilAttachment = &depthAttachmentRef;
+        subpass.pResolveAttachments = &colorAttachmentResolveRef;
 
         VkSubpassDependency dependency{};
         dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -356,7 +383,7 @@ namespace Quasar::RendererBackend
         dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-        std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
+        std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
         VkRenderPassCreateInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
         renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
@@ -458,7 +485,7 @@ namespace Quasar::RendererBackend
         VkPipelineMultisampleStateCreateInfo multisampling{};
         multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
         multisampling.sampleShadingEnable = VK_FALSE;
-        multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+        multisampling.rasterizationSamples = context->msaaSamples;
 
         VkPipelineDepthStencilStateCreateInfo depthStencil{};
         depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
@@ -530,10 +557,11 @@ namespace Quasar::RendererBackend
         context->swapChainFramebuffers.resize(context->swapchain.swapChainImageViews.size());
 
         for (size_t i = 0; i < context->swapchain.swapChainImageViews.size(); i++) {
-            std::array<VkImageView, 2> attachments = {
-                context->swapchain.swapChainImageViews[i],
-                context->swapchain.depthAttachment.view
-            };
+            std::array<VkImageView, 3> attachments = {
+            context->colorImageView,
+            context->swapchain.depthAttachment.view,
+            context->swapchain.swapChainImageViews[i]
+        };
 
             VkFramebufferCreateInfo framebufferInfo{};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -565,7 +593,7 @@ namespace Quasar::RendererBackend
     void Backend::DepthResourcesCreate() {
         VkFormat depthFormat = FindDepthFormat();
 
-        ImageCreate(context->swapchain.swapChainExtent.width, context->swapchain.swapChainExtent.height, 1, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, context->swapchain.depthAttachment.handle, context->swapchain.depthAttachment.memory);
+        ImageCreate(context->swapchain.swapChainExtent.width, context->swapchain.swapChainExtent.height, 1, context->msaaSamples, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, context->swapchain.depthAttachment.handle, context->swapchain.depthAttachment.memory);
         context->swapchain.depthAttachment.view = VulkanImageViewCreate(context, context->swapchain.depthAttachment.handle, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
     }
 
@@ -619,7 +647,7 @@ namespace Quasar::RendererBackend
 
         stbi_image_free(pixels);
 
-        ImageCreate(texWidth, texHeight, textureImage.mipLevels, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage.texture.handle, textureImage.texture.memory);
+        ImageCreate(texWidth, texHeight, textureImage.mipLevels, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage.texture.handle, textureImage.texture.memory);
 
         ImageLayoutTransition(context, textureImage.texture.handle, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, textureImage.mipLevels);
             CopyBufferToImage(context, stagingBuffer, textureImage.texture.handle, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
@@ -629,6 +657,13 @@ namespace Quasar::RendererBackend
 
         vkDestroyBuffer(context->device.logicalDevice, stagingBuffer, nullptr);
         vkFreeMemory(context->device.logicalDevice, stagingBufferMemory, nullptr);
+    }
+
+    void Backend::ColorResourcesCreate() {
+        VkFormat colorFormat = context->swapchain.swapChainImageFormat;
+
+        ImageCreate(context->swapchain.swapChainExtent.width, context->swapchain.swapChainExtent.height, 1, context->msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, context->colorImage, context->colorImageMemory);
+        context->colorImageView = VulkanImageViewCreate(context, context->colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     }
 
     void Backend::MipmapsGenerate(VkImage image, VkFormat imageFormat, i32 texWidth, i32 texHeight, u32 mipLevels) {
@@ -750,7 +785,7 @@ namespace Quasar::RendererBackend
         }
     }
 
-    void Backend::ImageCreate(u32 width, u32 height, u32 mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
+    void Backend::ImageCreate(u32 width, u32 height, u32 mipLevels,VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
         VkImageCreateInfo imageInfo{};
         imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -763,7 +798,7 @@ namespace Quasar::RendererBackend
         imageInfo.tiling = tiling;
         imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         imageInfo.usage = usage;
-        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.samples = numSamples;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         if (vkCreateImage(context->device.logicalDevice, &imageInfo, nullptr, &image) != VK_SUCCESS) {

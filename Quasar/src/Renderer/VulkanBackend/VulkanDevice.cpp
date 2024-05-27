@@ -45,6 +45,8 @@ b8 VulkanDeviceCreate(VulkanContext* context, VulkanDevice* outDevice) {
         }
     }
 
+    context->msaaSamples = GetMaxUsableSampleCount(context);
+
     // NOTE: Do not create additional queues for shared indices.
     b8 presentSharesGraphicsQueue = outDevice->graphicsQueueIndex == outDevice->presentQueueIndex;
     b8 transferSharesGraphicsQueue = outDevice->graphicsQueueIndex == outDevice->transferQueueIndex;
@@ -150,6 +152,21 @@ b8 VulkanDeviceCreate(VulkanContext* context, VulkanDevice* outDevice) {
     QS_CORE_DEBUG("Graphics command pool created.");
 
     return true;
+}
+
+VkSampleCountFlagBits GetMaxUsableSampleCount(VulkanContext* context) {
+    VkPhysicalDeviceProperties physicalDeviceProperties;
+    vkGetPhysicalDeviceProperties(context->device.physicalDevice, &physicalDeviceProperties);
+
+    VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+    if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+    if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+    if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+    if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+    if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+    if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+
+    return VK_SAMPLE_COUNT_1_BIT;
 }
 
 void VulkanDeviceDestroy(VulkanContext* context, VulkanDevice* device) {

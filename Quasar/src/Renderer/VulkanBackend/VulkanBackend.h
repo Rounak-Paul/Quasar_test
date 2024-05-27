@@ -53,7 +53,6 @@ namespace Quasar::RendererBackend
         };
 
         void DescriptorSetLayoutCreate();
-        void GraphicsPipelineCreate();
         void RenderPassCreate();
         void CommandPoolCreate();
         void ColorResourcesCreate();

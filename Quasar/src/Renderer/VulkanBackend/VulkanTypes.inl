@@ -106,6 +106,17 @@ typedef struct VulkanSwapchain {
     VulkanImage colorAttachment;
 } VulkanSwapchain;
 
+typedef struct VulkanPipeline {
+    VkDescriptorSetLayout descriptorSetLayout;
+    VkPipelineLayout pipelineLayout;
+    VkPipeline handle;
+} VulkanPipeline;
+
+typedef struct VulkanBuffer {
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+} VulkanBuffer;
+
 typedef struct VulkanContext {
     b8 recreatingSwapchain;
 
@@ -113,30 +124,24 @@ typedef struct VulkanContext {
     VkSurfaceKHR surface;
     VkAllocationCallbacks* allocator;
     VulkanDevice device;
-    
-    VulkanSwapchain swapchain;
-    VkRenderPass renderpass;
+    VulkanPipeline graphicsPipeline;
 
-    VkDescriptorSetLayout descriptorSetLayout;
-    VkPipelineLayout pipelineLayout;
-    VkPipeline graphicsPipeline;
     std::vector<VkFramebuffer> swapchainFramebuffers;
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
+    
+    VulkanSwapchain swapchain;
+    VkRenderPass renderpass;
 
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
 
-    VkBuffer vertexBuffer;
-    VkDeviceMemory vertexBufferMemory;
-    VkBuffer indexBuffer;
-    VkDeviceMemory indexBufferMemory;
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
+    VulkanBuffer vertexBuffer;
+    VulkanBuffer indexBuffer;
+    VulkanBuffer stagingBuffer;
 
-    std::vector<VkBuffer> uniformBuffers;
-    std::vector<VkDeviceMemory> uniformBuffersMemory;
+    std::vector<VulkanBuffer> uniformBuffers;
     std::vector<void*> uniformBuffersMapped;
 
     VkDescriptorPool descriptorPool;

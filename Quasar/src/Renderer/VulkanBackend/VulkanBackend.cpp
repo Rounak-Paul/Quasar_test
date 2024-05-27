@@ -222,6 +222,9 @@ namespace Quasar::RendererBackend
     }
 
     void Backend::Resize() {
+        if (QS_APP_STATE.suspended) {
+            return;
+        }
         QS_CORE_TRACE("Backend resizing...")
         // Requery support
         VulkanDeviceQuerySwapchainSupport(

@@ -18,6 +18,8 @@
 #include <algorithm>
 #include <string>
 #include <array>
+#include <span>
+#include <optional>
 #pragma warning(pop)
 
 // Vendor

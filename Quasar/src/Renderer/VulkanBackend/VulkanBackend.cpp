@@ -1093,6 +1093,6 @@ namespace Quasar::RendererBackend
 
         VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_immCommandBuffer));
 
-        _mainDeletionQueue.push_function([=]() { vkDestroyCommandPool(_device, _immCommandPool, nullptr); });
+        mainDeletionQueue.push_function([=]() { vkDestroyCommandPool(context->device.logicalDevice, _immCommandPool, nullptr); });
     }
 } // namespace Quasar::RendererBackend

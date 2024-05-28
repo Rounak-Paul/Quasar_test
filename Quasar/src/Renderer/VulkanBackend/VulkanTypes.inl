@@ -1,7 +1,14 @@
 #pragma once
 #include <qspch.h>
 
+#include <vk_mem_alloc.h>
+
 namespace Quasar::RendererBackend {
+
+#define VK_CHECK(expr)                  \
+{                                      \
+    assert(expr == VK_SUCCESS);        \
+} 
 
 #define MAX_FRAMES_IN_FLIGHT 2
 
@@ -52,18 +59,35 @@ struct Vertex {
 };
 
 typedef struct VulkanImage {
-    VkImage handle;
-    VkDeviceMemory memory;
+    VkImage image;
+    VmaAllocation allocation;
     VkImageView view;
-    u32 width;
-    u32 height;
+    VkExtent3D extent;
+    VkFormat format;
 } VulkanImage;
+
+typedef struct VulkanBuffer {
+    VkBuffer buffer;
+    VmaAllocation allocation;
+    VmaAllocationInfo info;
+} VulkanBuffer;
 
 typedef struct VulkanTexture {
     VulkanImage texture;
     VkSampler sampler;
     u32 mipLevels;
 } VulkanTexture;
+
+struct FrameData {
+	VkSemaphore _swapchainSemaphore, _renderSemaphore;
+	VkFence _renderFence;
+
+    DescriptorAllocatorGrowable _frameDescriptors;
+    DeletionQueue _deletionQueue;
+
+    VkCommandPool _commandPool;
+    VkCommandBuffer _mainCommandBuffer;
+};
 
 typedef struct VulkanSwapchainSupportInfo {
     VkSurfaceCapabilitiesKHR capabilities;
@@ -112,26 +136,30 @@ typedef struct VulkanPipeline {
     VkPipeline handle;
 } VulkanPipeline;
 
-typedef struct VulkanBuffer {
-    VkBuffer buffer;
-    VkDeviceMemory memory;
-} VulkanBuffer;
-
 typedef struct VulkanContext {
-    b8 recreatingSwapchain;
+    b8 resizeRequested;
 
     VkInstance instance;
     VkSurfaceKHR surface;
     VkAllocationCallbacks* allocator;
+    VmaAllocator vmaAllocator;
     VulkanDevice device;
     VulkanPipeline graphicsPipeline;
+
+    VulkanSwapchain swapchain;
+
+    // draw resources
+    VulkanImage drawImage;
+    VulkanImage depthImage;
 
     std::vector<VkFramebuffer> swapchainFramebuffers;
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
     
-    VulkanSwapchain swapchain;
+    
     VkRenderPass renderpass;
+
+    
 
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;

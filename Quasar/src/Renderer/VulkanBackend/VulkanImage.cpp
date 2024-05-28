@@ -16,8 +16,8 @@ namespace Quasar::RendererBackend
         VkMemoryPropertyFlags properties, 
         VulkanImage& outImage) {
 
-        outImage.width = width;
-        outImage.height = height;
+        outImage.extent.width = width;
+        outImage.extent.height = height;
 
         VkImageCreateInfo imageInfo{};
         imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -34,12 +34,12 @@ namespace Quasar::RendererBackend
         imageInfo.samples = numSamples;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        if (vkCreateImage(context->device.logicalDevice, &imageInfo, nullptr, &outImage.handle) != VK_SUCCESS) {
+        if (vkCreateImage(context->device.logicalDevice, &imageInfo, nullptr, &outImage.image) != VK_SUCCESS) {
             QS_CORE_FATAL("failed to create image!");
         }
 
         VkMemoryRequirements memRequirements;
-        vkGetImageMemoryRequirements(context->device.logicalDevice, outImage.handle, &memRequirements);
+        vkGetImageMemoryRequirements(context->device.logicalDevice, outImage.image, &memRequirements);
 
         VkMemoryAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -50,7 +50,7 @@ namespace Quasar::RendererBackend
             QS_CORE_FATAL("failed to allocate image memory!");
         }
 
-        vkBindImageMemory(context->device.logicalDevice, outImage.handle, outImage.memory, 0);
+        vkBindImageMemory(context->device.logicalDevice, outImage.image, outImage.memory, 0);
     }
 
     VkImageView VulkanImageViewCreate(VulkanContext* context, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, u32 mipLevels) {

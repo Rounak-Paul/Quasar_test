@@ -11,6 +11,23 @@
 
 namespace Quasar::RendererBackend
 {
+    struct DeletionQueue {
+        std::deque<std::function<void()>> deletors;
+        void push_function(std::function<void()>&& function)
+        {
+            deletors.push_back(function);
+        }
+
+        void flush()
+        {
+            // reverse iterate the deletion queue to execute all the functions
+            for (auto it = deletors.rbegin(); it != deletors.rend(); it++) {
+                (*it)(); // call functors
+            }
+            deletors.clear();
+        }
+    };
+
     class Backend {
         public:
         Backend();
@@ -42,6 +59,7 @@ namespace Quasar::RendererBackend
 
         private:
         VulkanContext* context = nullptr;
+        DeletionQueue mainDeletionQueue;
 
         private:
         std::vector<const char*> GetRequiredExtensions();
@@ -76,5 +94,18 @@ namespace Quasar::RendererBackend
         VkFormat FindDepthFormat();
         bool HasStencilComponent(VkFormat format);
         void MipmapsGenerate(VkImage image, VkFormat imageFormat, i32 texWidth, i32 texHeight, u32 mipLevels);
+
+        private:
+        b8 _InitVulkan(String& appName);
+        void _InitSwapchain();
+        void _ResizeSwapchain();
+        void _InitCommands();
+        void _InitPipelines();
+        void _InitBackgroundPipelines();
+        void _InitDescriptors();
+        void _InitSyncStructures();
+        void _InitRenderables();
+        void _InitDefaultData();
+
     };
 } // namespace Quasar

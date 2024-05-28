@@ -90,6 +90,8 @@
         "queue": "cpp",
         "stack": "cpp",
         "string_view": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "condition_variable": "cpp",
+        "shared_mutex": "cpp"
     }
 }

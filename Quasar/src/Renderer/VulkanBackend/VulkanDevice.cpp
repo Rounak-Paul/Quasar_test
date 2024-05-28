@@ -2,10 +2,6 @@
 
 namespace Quasar::RendererBackend
 {
-#define VK_CHECK(expr)                  \
-{                                      \
-    assert(expr == VK_SUCCESS);        \
-} 
 
 typedef struct VulkanPhysicalDeviceRequirements {
     b8 graphics;

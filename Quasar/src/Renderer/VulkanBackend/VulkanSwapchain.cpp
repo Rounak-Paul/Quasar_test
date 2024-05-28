@@ -81,13 +81,11 @@ namespace Quasar::RendererBackend
         outSwapchain->swapchainImageFormat = surfaceFormat.format;
         outSwapchain->swapchainExtent = extent;
 
-        // TODO: move to VulkanImage
         __ImageViewsCreate(context, outSwapchain);
         return true;
     }
 
     void __Destroy(VulkanContext* context, VulkanSwapchain* swapchain) {
-        // TODO: move to VulkanImage
         for (auto it : swapchain->swapchainImageViews) {
             vkDestroyImageView(context->device.logicalDevice, it, nullptr);
         }
@@ -96,7 +94,6 @@ namespace Quasar::RendererBackend
         vkDestroySwapchainKHR(context->device.logicalDevice, swapchain->handle, nullptr);
     }
 
-    // TODO: move to VulkanImage
     void __ImageViewsCreate(VulkanContext* context, VulkanSwapchain* outSwapchain) {
         outSwapchain->swapchainImageViews.resize(outSwapchain->swapchainImages.size());
 

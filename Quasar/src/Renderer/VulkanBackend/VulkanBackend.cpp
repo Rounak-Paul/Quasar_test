@@ -7,7 +7,11 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
+#include "VulkanCreateInfo.h"
 #include "VulkanPipeline.h"
+
+#define VMA_IMPLEMENTATION
+#include <vk_mem_alloc.h>
 
 namespace Quasar::RendererBackend
 {
@@ -17,67 +21,8 @@ namespace Quasar::RendererBackend
         context = new VulkanContext();
         context->width = w;
         context->height = h;
-#ifdef QS_DEBUG 
-        if (!CheckValidationLayerSupport()) {
-            QS_CORE_ERROR("Validation layers requested, but not available!");
-            return false;
-        }
-#endif
-        VkApplicationInfo appInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
-        appInfo.pApplicationName = appName.c_str();
-        appInfo.applicationVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);
-        appInfo.pEngineName = "Quasar Engine";
-        appInfo.engineVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);
-        appInfo.apiVersion = VK_API_VERSION_1_3;
 
-        VkInstanceCreateInfo createInfo = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
-        createInfo.pApplicationInfo = &appInfo;
-
-        auto extensions = GetRequiredExtensions();
-
-#ifdef QS_PLATFORM_APPLE
-        createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-#endif
-        createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-        createInfo.ppEnabledExtensionNames = extensions.data();
-
-#ifdef QS_DEBUG
-        VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
-        createInfo.enabledLayerCount = static_cast<uint32_t>(m_validationLayers.size());
-        createInfo.ppEnabledLayerNames = m_validationLayers.data();
-
-        PopulateDebugMessengerCreateInfo(debugCreateInfo);
-        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
-#else
-        createInfo.enabledLayerCount = 0;
-        createInfo.ppEnabledLayerNames = nullptr;
-#endif
-
-        // Instance creation
-        QS_CORE_DEBUG("Creating Vulkan instance...");
-        VkResult result = vkCreateInstance(&createInfo, context->allocator, &context->instance);
-        if (result != VK_SUCCESS) {
-            QS_CORE_ERROR("Instance creation failed with VkResult: %d", result);
-            return false;
-        }
-
-        // Surface creation
-        QS_CORE_DEBUG("Creating Vulkan surface...");
-        GLFWwindow* window = QS_MAIN_WINDOW.GetGLFWwindow();
-        result = glfwCreateWindowSurface(context->instance, window, context->allocator, &context->surface);
-        if (result != VK_SUCCESS) {
-            QS_CORE_ERROR("Failed to create Window Surface, VkResult: %d", result);
-            vkDestroyInstance(context->instance, context->allocator);
-            context->instance = VK_NULL_HANDLE;
-            return false;
-        }
-
-        // Device
-        QS_CORE_INFO("Device Selection")
-        if (!VulkanDeviceCreate(context, &context->device)) {
-            QS_CORE_FATAL("Failed to create Device!")
-            return false;
-        }
+        _InitVulkan(appName);
 
         // Swapchain
         QS_CORE_DEBUG("Creating Swapchain")
@@ -984,5 +929,170 @@ namespace Quasar::RendererBackend
         }
 
         context->frameIndex = (context->frameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
+    }
+
+    b8 Backend::_InitVulkan(String& appName) {
+        #ifdef QS_DEBUG 
+        if (!CheckValidationLayerSupport()) {
+            QS_CORE_ERROR("Validation layers requested, but not available!");
+            return false;
+        }
+#endif
+        VkApplicationInfo appInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
+        appInfo.pApplicationName = appName.c_str();
+        appInfo.applicationVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);
+        appInfo.pEngineName = "Quasar Engine";
+        appInfo.engineVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);
+        appInfo.apiVersion = VK_API_VERSION_1_3;
+
+        VkInstanceCreateInfo createInfo = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
+        createInfo.pApplicationInfo = &appInfo;
+
+        auto extensions = GetRequiredExtensions();
+
+#ifdef QS_PLATFORM_APPLE
+        createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
+        createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+        createInfo.ppEnabledExtensionNames = extensions.data();
+
+#ifdef QS_DEBUG
+        VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
+        createInfo.enabledLayerCount = static_cast<uint32_t>(m_validationLayers.size());
+        createInfo.ppEnabledLayerNames = m_validationLayers.data();
+
+        PopulateDebugMessengerCreateInfo(debugCreateInfo);
+        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
+#else
+        createInfo.enabledLayerCount = 0;
+        createInfo.ppEnabledLayerNames = nullptr;
+#endif
+
+        // Instance creation
+        QS_CORE_DEBUG("Creating Vulkan instance...");
+        VkResult result = vkCreateInstance(&createInfo, context->allocator, &context->instance);
+        if (result != VK_SUCCESS) {
+            QS_CORE_ERROR("Instance creation failed with VkResult: %d", result);
+            return false;
+        }
+
+        // Surface creation
+        QS_CORE_DEBUG("Creating Vulkan surface...");
+        GLFWwindow* window = QS_MAIN_WINDOW.GetGLFWwindow();
+        result = glfwCreateWindowSurface(context->instance, window, context->allocator, &context->surface);
+        if (result != VK_SUCCESS) {
+            QS_CORE_ERROR("Failed to create Window Surface, VkResult: %d", result);
+            vkDestroyInstance(context->instance, context->allocator);
+            context->instance = VK_NULL_HANDLE;
+            return false;
+        }
+
+        // Device
+        QS_CORE_INFO("Device Selection")
+        if (!VulkanDeviceCreate(context, &context->device)) {
+            QS_CORE_FATAL("Failed to create Device!")
+            return false;
+        }
+
+        // initialize the memory allocator
+        VmaAllocatorCreateInfo allocatorInfo = {};
+        allocatorInfo.physicalDevice = context->device.physicalDevice;
+        allocatorInfo.device = context->device.logicalDevice;
+        allocatorInfo.instance = context->instance;
+        allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+        if (vmaCreateAllocator(&allocatorInfo, &context->vmaAllocator) != VK_SUCCESS) {
+            QS_CORE_FATAL("Failed to create Vulkan Allocator!")
+            return false;
+        }
+
+        return true;
+    }
+
+    void Backend::_InitSwapchain() {
+        VulkanSwapchainCreate(context, &context->swapchain);
+
+        context->drawImage.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        context->drawImage.extent = { context->swapchain.swapchainExtent.width, context->swapchain.swapchainExtent.height };
+
+        VkImageUsageFlags drawImageUsages{};
+        drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
+        drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+        VkImageCreateInfo rimg_info = VulkanImageCreateInfo(context->drawImage.format, drawImageUsages, context->drawImage.extent);
+
+        //for the draw image, we want to allocate it from gpu local memory
+        VmaAllocationCreateInfo rimg_allocinfo = {};
+        rimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        rimg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        //allocate and create the image
+        vmaCreateImage(context->vmaAllocator, &rimg_info, &rimg_allocinfo, &context->drawImage.image, &context->drawImage.allocation, nullptr);
+
+        //build a image-view for the draw image to use for rendering
+        VkImageViewCreateInfo rview_info = VulkanImageViewCreateInfo(context->drawImage.format, context->drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
+
+        VK_CHECK(vkCreateImageView(context->device.logicalDevice, &rview_info, nullptr, &context->drawImage.view));
+
+        //create a depth image too
+        //hardcoding the draw format to 32 bit float
+        context->depthImage.format = VK_FORMAT_D32_SFLOAT;
+        context->depthImage.extent = context->drawImage.extent;
+
+        VkImageUsageFlags depthImageUsages{};
+        depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+        VkImageCreateInfo dimg_info = VulkanImageCreateInfo(context->depthImage.format, depthImageUsages, context->drawImage.extent);
+
+        //allocate and create the image
+        vmaCreateImage(context->vmaAllocator, &dimg_info, &rimg_allocinfo, &context->depthImage.image, &context->depthImage.allocation, nullptr);
+
+        //build a image-view for the draw image to use for rendering
+        VkImageViewCreateInfo dview_info = VulkanImageViewCreateInfo(context->depthImage.format, context->depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+        VK_CHECK(vkCreateImageView(context->device.logicalDevice, &dview_info, nullptr, &context->depthImage.view));
+
+
+        //add to deletion queues
+        mainDeletionQueue.push_function([=]() {
+            vkDestroyImageView(context->device.logicalDevice, context->drawImage.view, nullptr);
+            vmaDestroyImage(context->vmaAllocator, context->drawImage.image, context->drawImage.allocation);
+
+            vkDestroyImageView(context->device.logicalDevice, context->depthImage.view, nullptr);
+            vmaDestroyImage(context->vmaAllocator, context->depthImage.image, context->depthImage.allocation);
+        });
+    }
+
+    void Backend::_ResizeSwapchain() {
+        vkDeviceWaitIdle(context->device.logicalDevice);
+        VulkanSwapchainRecreate(context, &context->swapchain);
+        context->resizeRequested = false;
+    }
+
+    void Backend::_InitCommands() {
+        // create a command pool for commands submitted to the graphics queue.
+        // we also want the pool to allow for resetting of individual command buffers
+        VkCommandPoolCreateInfo commandPoolInfo = VulkanCommandPoolCreateInfo(context->device.graphicsQueueIndex, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+
+        for (u8 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+
+            VK_CHECK(vkCreateCommandPool(context->device.logicalDevice, &commandPoolInfo, nullptr, &_frames[i]._commandPool));
+
+            // allocate the default command buffer that we will use for rendering
+            VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(_frames[i]._commandPool, 1);
+
+            VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_frames[i]._mainCommandBuffer));
+
+            _mainDeletionQueue.push_function([=]() { vkDestroyCommandPool(_device, _frames[i]._commandPool, nullptr); });
+        }
+
+        VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_immCommandPool));
+
+        // allocate the default command buffer that we will use for rendering
+        VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(_immCommandPool, 1);
+
+        VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_immCommandBuffer));
+
+        _mainDeletionQueue.push_function([=]() { vkDestroyCommandPool(_device, _immCommandPool, nullptr); });
     }
 } // namespace Quasar::RendererBackend

@@ -20,7 +20,7 @@ struct Vertex {
         return pos == other.pos && color == other.color && texCoord == other.texCoord;
     }
 
-    static VkVertexInputBindingDescription getBindingDescription() {
+    static VkVertexInputBindingDescription GetBindingDescription() {
         VkVertexInputBindingDescription bindingDescription{};
         bindingDescription.binding = 0;
         bindingDescription.stride = sizeof(Vertex);
@@ -29,7 +29,7 @@ struct Vertex {
         return bindingDescription;
     }
 
-    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
+    static std::array<VkVertexInputAttributeDescription, 3> GetAttributeDescriptions() {
         std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
 
         attributeDescriptions[0].binding = 0;
@@ -92,16 +92,30 @@ typedef struct VulkanDevice {
     VkPhysicalDeviceMemoryProperties memory;
 
     VkFormat depthFormat;
+
+    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 } VulkanDevice;
 
 typedef struct VulkanSwapchain {
     VkSwapchainKHR handle;
-    std::vector<VkImage> swapChainImages;
-    VkFormat swapChainImageFormat;
-    VkExtent2D swapChainExtent;
-    std::vector<VkImageView> swapChainImageViews;
+    std::vector<VkImage> swapchainImages;
+    VkFormat swapchainImageFormat;
+    VkExtent2D swapchainExtent;
+    std::vector<VkImageView> swapchainImageViews;
     VulkanImage depthAttachment;
+    VulkanImage colorAttachment;
 } VulkanSwapchain;
+
+typedef struct VulkanPipeline {
+    VkDescriptorSetLayout descriptorSetLayout;
+    VkPipelineLayout pipelineLayout;
+    VkPipeline handle;
+} VulkanPipeline;
+
+typedef struct VulkanBuffer {
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+} VulkanBuffer;
 
 typedef struct VulkanContext {
     b8 recreatingSwapchain;
@@ -110,35 +124,24 @@ typedef struct VulkanContext {
     VkSurfaceKHR surface;
     VkAllocationCallbacks* allocator;
     VulkanDevice device;
+    VulkanPipeline graphicsPipeline;
+
+    std::vector<VkFramebuffer> swapchainFramebuffers;
+    VkCommandPool commandPool;
+    std::vector<VkCommandBuffer> commandBuffers;
     
     VulkanSwapchain swapchain;
     VkRenderPass renderpass;
-
-    VkDescriptorSetLayout descriptorSetLayout;
-    VkPipelineLayout pipelineLayout;
-    VkPipeline graphicsPipeline;
-    std::vector<VkFramebuffer> swapChainFramebuffers;
-    VkCommandPool commandPool;
-    std::vector<VkCommandBuffer> commandBuffers;
 
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
 
-    VkBuffer vertexBuffer;
-    VkDeviceMemory vertexBufferMemory;
-    VkBuffer indexBuffer;
-    VkDeviceMemory indexBufferMemory;
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
+    VulkanBuffer vertexBuffer;
+    VulkanBuffer indexBuffer;
+    VulkanBuffer stagingBuffer;
 
-    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
-    VkImage colorImage;
-    VkDeviceMemory colorImageMemory;
-    VkImageView colorImageView;
-
-    std::vector<VkBuffer> uniformBuffers;
-    std::vector<VkDeviceMemory> uniformBuffersMemory;
+    std::vector<VulkanBuffer> uniformBuffers;
     std::vector<void*> uniformBuffersMapped;
 
     VkDescriptorPool descriptorPool;

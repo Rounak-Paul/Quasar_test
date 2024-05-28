@@ -45,7 +45,7 @@ b8 VulkanDeviceCreate(VulkanContext* context, VulkanDevice* outDevice) {
         }
     }
 
-    context->msaaSamples = GetMaxUsableSampleCount(context);
+    context->device.msaaSamples = GetMaxUsableSampleCount(context);
 
     // NOTE: Do not create additional queues for shared indices.
     b8 presentSharesGraphicsQueue = outDevice->graphicsQueueIndex == outDevice->presentQueueIndex;

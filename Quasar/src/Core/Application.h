@@ -3,7 +3,8 @@
 #include <chrono>
 
 #include "Window.h"
-#include <Core/Event.h>
+#include "Event.h"
+#include "Input.h"
 
 namespace Quasar
 {

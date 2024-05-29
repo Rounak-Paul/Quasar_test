@@ -94,5 +94,4 @@ namespace Quasar
         return false;
     }
 
-
 } // namespace Quasar

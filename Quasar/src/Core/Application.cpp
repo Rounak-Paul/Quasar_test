@@ -74,19 +74,15 @@ namespace Quasar
             u16 height = context.data.u16[1];
 
             QS_CORE_TRACE("[ %d : %d ]", width, height)
+            QS_RENDERER_API.Resize();
 
             if (width == 0 || height == 0) {
                 QS_CORE_INFO("Application suspended")
                 QS_APP_STATE.suspended = true;
-                return true;
             }
             else {
-                QS_CORE_INFO("Application resumed")
-                QS_APP_STATE.suspended = false;
-            }
 
-            if (!QS_APP_STATE.suspended) {
-                QS_RENDERER_API.Resize();
+                QS_APP_STATE.suspended = false;
             }
 
             return true;

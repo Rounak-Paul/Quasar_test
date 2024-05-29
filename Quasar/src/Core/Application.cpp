@@ -81,7 +81,7 @@ namespace Quasar
                 return true;
             }
             else {
-                if (QS_APP_STATE.suspended) QS_CORE_INFO("Application resumed")
+                QS_CORE_INFO("Application resumed")
                 QS_APP_STATE.suspended = false;
             }
 

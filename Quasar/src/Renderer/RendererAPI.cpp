@@ -17,8 +17,8 @@ namespace Quasar
             u16 width = QS_MAIN_WINDOW.GetExtent().width;
             u16 height = QS_MAIN_WINDOW.GetExtent().height;
         #endif
-        s_instance->m_backend = std::make_unique<RendererBackend::Backend>();
-        if(!s_instance->m_backend->Init(appName, width, height)) {
+        s_instance->m_backend = std::make_unique<Renderer::Backend>();
+        if(!s_instance->m_backend->init()) {
             return false;
         }
 
@@ -26,14 +26,14 @@ namespace Quasar
     }
 
     void RendererAPI::Shutdown() {
-        m_backend->Shutdown();
+        m_backend->shutdown();
     }
 
     void RendererAPI::DrawFrame(f32 dt) {
-        m_backend->DrawFrame(dt);
+        m_backend->draw();
     }
     
     void RendererAPI::Resize() {
-        m_backend->framebufferResized = true;
+        // m_backend->framebufferResized = true;
     }
 } // namespace Quasar

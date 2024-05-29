@@ -21,6 +21,8 @@ target_include_directories(Quasar PUBLIC
     ${VULKAN_PATH}/include
     ${PROJECT_SOURCE_DIR}/Quasar/Vendor/STB
     ${PROJECT_SOURCE_DIR}/Quasar/Vendor/TINYOBJLOADER
+    ${PROJECT_SOURCE_DIR}/Quasar/Vendor/VKBOOTSTRAP
+    ${PROJECT_SOURCE_DIR}/Quasar/Vendor/VMA
 )
 
 target_link_directories(Quasar PUBLIC ${VULKAN_PATH}/lib)

@@ -1,7 +1,7 @@
 #pragma once
 #include <qspch.h>
 
-#include "VulkanBackend/VulkanBackend.h"
+#include <Renderer/VulkanBackend/backend.h>
 
 namespace Quasar
 {
@@ -23,7 +23,7 @@ namespace Quasar
 
         private:
         static RendererAPI* s_instance;
-        Scope<RendererBackend::Backend> m_backend;
+        Scope<Renderer::Backend> m_backend;
     };
     #define QS_RENDERER_API RendererAPI::GetInstance()
 } // namespace Quasar

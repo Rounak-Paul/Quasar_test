@@ -207,10 +207,11 @@ void Backend::init_vulkan()
 		.set_required_features_13(features)
 		.set_required_features_12(features12)
 		.set_surface(_surface)
+#ifdef QS_PLATFORM_APPLE
+#else
 		.prefer_gpu_device_type(vkb::PreferredDeviceType::discrete)
-		.select()
-		.value();
-
+#endif
+		.select().value();
 
 	//create the final vulkan device
 	vkb::DeviceBuilder deviceBuilder{ physicalDevice };

@@ -187,15 +187,17 @@ void Backend::init_vulkan()
         QS_CORE_FATAL("failed to create window surface!");
     }
 
-	//vulkan 1.3 features
-	VkPhysicalDeviceVulkan13Features features{};
-	features.dynamicRendering = true;
-	features.synchronization2 = true;
+	// Vulkan 1.3 features
+	VkPhysicalDeviceVulkan13Features features = {};
+	features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+	features.dynamicRendering = VK_TRUE;
+	features.synchronization2 = VK_TRUE;
 
-	//vulkan 1.2 features
-	VkPhysicalDeviceVulkan12Features features12{};
-	features12.bufferDeviceAddress = true;
-	features12.descriptorIndexing = true;
+	// Vulkan 1.2 features
+	VkPhysicalDeviceVulkan12Features features12 = {};
+	features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+	features12.bufferDeviceAddress = VK_TRUE;
+	features12.descriptorIndexing = VK_TRUE;
 
 	//use vkbootstrap to select a gpu. 
 	//We want a gpu that can write to the GLFW surface and supports vulkan 1.3 with the correct features
@@ -205,6 +207,7 @@ void Backend::init_vulkan()
 		.set_required_features_13(features)
 		.set_required_features_12(features12)
 		.set_surface(_surface)
+		.prefer_gpu_device_type(vkb::PreferredDeviceType::discrete)
 		.select()
 		.value();
 

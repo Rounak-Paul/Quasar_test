@@ -10,3 +10,9 @@
 [submodule "Quasar/Vendor/TINYOBJLOADER"]
 	path = Quasar/Vendor/TINYOBJLOADER
 	url = https://github.com/Rounak-Paul/tinyobjloader.git
+[submodule "Quasar/Vendor/FASTGLTF"]
+	path = Quasar/Vendor/FASTGLTF
+	url = https://github.com/Rounak-Paul/fastgltf.git
+[submodule "Quasar/Vendor/VKBOOTSTRAP"]
+	path = Quasar/Vendor/VKBOOTSTRAP
+	url = https://github.com/Rounak-Paul/vk-bootstrap.git

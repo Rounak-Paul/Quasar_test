@@ -11,6 +11,7 @@ target_compile_definitions(Quasar PRIVATE QS_BUILD_DLL)
 
 add_subdirectory(Vendor/GLFW)
 add_subdirectory(Vendor/GLM)
+add_subdirectory(Vendor/VKBOOTSTRAP)
 
 target_precompile_headers(Quasar PUBLIC src/qspch.h)
 
@@ -21,6 +22,8 @@ target_include_directories(Quasar PUBLIC
     ${VULKAN_PATH}/include
     ${PROJECT_SOURCE_DIR}/Quasar/Vendor/STB
     ${PROJECT_SOURCE_DIR}/Quasar/Vendor/TINYOBJLOADER
+    ${PROJECT_SOURCE_DIR}/Quasar/Vendor/VKBOOTSTRAP/src
+    ${PROJECT_SOURCE_DIR}/Quasar/Vendor/VMA
 )
 
 target_link_directories(Quasar PUBLIC ${VULKAN_PATH}/lib)
@@ -28,6 +31,7 @@ target_link_directories(Quasar PUBLIC ${VULKAN_PATH}/lib)
 target_link_libraries(Quasar PUBLIC 
     glfw
     glm
+    vk-bootstrap
 )
 
 if(APPLE)
